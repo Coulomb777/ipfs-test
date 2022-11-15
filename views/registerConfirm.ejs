@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- jQuery -->
+    <script src="/public/javascripts/jquery-3.6.1.min.js"></script>
+    <!-- Bootstrap css-->
+    <link rel="stylesheet" type="text/css" href="/public/stylesheets/bootstrap-5.0.2/bootstrap.min.css">
+    <script src="/public/javascripts/bootstrap-5.0.2/bootstrap.bundle.min.js"></script>
+    <title>登録画面</title>
+</head>
+
+<body>
+
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">IPFS</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarSupportedContent">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/register">新規登録</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link disabled" href="/login" aria-disabled="true">ログイン</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+    <div class="container my-5 p-5 border rounded">
+        <h3 class="pb-2">登録確認</h3>
+        以下の内容で登録します。<br><br>
+        <form method="post" action="/register/processing">
+            <div class="mb-3">
+                <label for="user-id" class="form-label">ユーザーID</label>
+                <input type="text" style="border:none" class="form-control" id="user-id" name="user-id" value="<%= userID %>" readonly />
+                <div class="mb-3">
+                    <label for="password" class="form-label">パスワード</label>
+                    <input type="password" style="border:none" class="form-control" id="password" name="password" value="<%= password %>" readonly />
+                </div>
+                <button type="submit" class="btn btn-secondary" id="btn">登録</button>
+                <a class="btn btn-secondary" id="btn" onclick="location.href='/register'">キャンセル</a>
+        </form>
+    </div>
+
+</body>
+</html>
