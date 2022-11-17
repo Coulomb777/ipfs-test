@@ -111,10 +111,11 @@ async function addFile() {
             if (isExist) { // 存在していたらファイルを削除。
                 await ipfs.files.rm(encryptedAllPath);
             }
+            console.log(encryptedAllPath);
             // buff を IPFSノードに登録できる形にする。
             const buff = new Uint8Array(data.file.buff[0].data);
             // ファイルをクライアント側のIPFSノードに登録。
-            await ipfs.files.write(encryptedAllPath, buff, { create: true });
+            await ipfs.files.write(`/${encryptedAllPath}`, buff, { create: true });
             stat = await ipfs.files.stat('/');
             console.log(stat.cid.toString());
         });
