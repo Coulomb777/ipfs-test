@@ -25,11 +25,10 @@ $(window).on('load', async () => { // ページ読み込み終了後の処理。
     // ファイルの追加。
     $(document).on('change', '#add-file', async () => {
         try {
-            addFile();
+            await addFile();
         } catch (err) {
             console.log(err);
         }
-        window.location.reload();
         return false;
     });
     
@@ -118,6 +117,7 @@ async function addFile() {
             await ipfs.files.write(`/${encryptedAllPath}`, buff, { create: true });
             stat = await ipfs.files.stat('/');
             console.log(stat.cid.toString());
+            window.location.reload();
         });
     }
 }
@@ -150,14 +150,44 @@ async function listFile(cid, name) {
         processData: false
     }).done(async (data) => {
         $(".files").append(
-            '<tr><td scope="row"><input type="checkbox" class="file"> [F]</td>'
-            + `<td class="clickable-row" href="/user/${userID}/files/${cid}">${data.text}</td></tr>`
+              '<tr>'
+            + `<td class="clickable-row" href="/user/${userID}/files/${cid}">`
+            + ` <div class="selection" style="display: inline-block; _display: inline;">`
+            + `     <input type="checkbox" class="file">`
+            + ` </div>`
+            + ` <div class="content-icon" style="display: inline-block; _display: inline;">`
+            + `     <svg focusable="false" viewBox="0 0 32 32" height="16px" width="16px" fill="#5f6368">`
+            + `         <g>`
+            + `             <path d="M28.681 7.159c-0.694-0.947-1.662-2.053-2.724-3.116s-2.169-2.030-3.116-2.724c-1.612-1.182-2.393-1.319-2.841-1.319h-15.5c-1.378 0-2.5 1.121-2.5 2.5v27c0 1.378 1.122 2.5 2.5 2.5h23c1.378 0 2.5-1.122 2.5-2.5v-19.5c0-0.448-0.137-1.23-1.319-2.841zM24.543 5.457c0.959 0.959 1.712 1.825 2.268 2.543h-4.811v-4.811c0.718 0.556 1.584 1.309 2.543 2.268zM28 29.5c0 0.271-0.229 0.5-0.5 0.5h-23c-0.271 0-0.5-0.229-0.5-0.5v-27c0-0.271 0.229-0.5 0.5-0.5 0 0 15.499-0 15.5 0v7c0 0.552 0.448 1 1 1h7v19.5z"></path>`
+            + `         </g>`
+            + `     </svg>`
+            + ` </div>`
+            + ` <div class="file-name" style="display: inline-block; _display: inline;">`
+            + `     ${data.text}`
+            + ` </div>`
+            + ` <td scope="row">`
+            + `</tr>`
         );
     }).fail(async () => {
         $(".files").append(
-            '<tr><td scope="row"><input type="checkbox" class="file"> [F]</td>'
-            + `<td class="clickable-row" href="/user/${userID}/files/${cid}">[encrypted]${name}</td></tr>`
-        );
+            '<tr>'
+          + `<td class="clickable-row" href="/user/${userID}/files/${cid}">`
+          + ` <div class="selection" style="display: inline-block; _display: inline;">`
+          + `     <input type="checkbox" class="file">`
+          + ` </div>`
+          + ` <div class="content-icon" style="display: inline-block; _display: inline;">`
+          + `     <svg focusable="false" viewBox="0 0 32 32" height="16px" width="16px" fill="#5f6368">`
+          + `         <g>`
+          + `             <path d="M28.681 7.159c-0.694-0.947-1.662-2.053-2.724-3.116s-2.169-2.030-3.116-2.724c-1.612-1.182-2.393-1.319-2.841-1.319h-15.5c-1.378 0-2.5 1.121-2.5 2.5v27c0 1.378 1.122 2.5 2.5 2.5h23c1.378 0 2.5-1.122 2.5-2.5v-19.5c0-0.448-0.137-1.23-1.319-2.841zM24.543 5.457c0.959 0.959 1.712 1.825 2.268 2.543h-4.811v-4.811c0.718 0.556 1.584 1.309 2.543 2.268zM28 29.5c0 0.271-0.229 0.5-0.5 0.5h-23c-0.271 0-0.5-0.229-0.5-0.5v-27c0-0.271 0.229-0.5 0.5-0.5 0 0 15.499-0 15.5 0v7c0 0.552 0.448 1 1 1h7v19.5z"></path>`
+          + `         </g>`
+          + `     </svg>`
+          + ` </div>`
+          + ` <div class="file-name" style="display: inline-block; _display: inline;">`
+          + `     [encrypted]${name}`
+          + ` </div>`
+          + ` <td scope="row">`
+          + `</tr>`
+      );
     });
 }
 

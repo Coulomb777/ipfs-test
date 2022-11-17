@@ -51,9 +51,10 @@ router.post('/:id/upload', upload.single('file'), async (req, res) => {
   const password = req.body['password'];
   const allPath = (req.body['path'] == '') ? '' : req.body['path'].slice(1);
   let fileName = req.file.originalname;
-  
+ 
   // ユーザの存在確認。
   const countUserID = operateSqlite3.getCount('user', `WHERE id='${userID}'`);
+  console.log(countUserID);
   if (countUserID == 0) {
     return res.statusCode(400).send('Bad request');
   }
@@ -75,6 +76,7 @@ router.post('/:id/upload', upload.single('file'), async (req, res) => {
   // ファイル名の暗号化。
   const encryptedName = doCrypto.encryptString(cryptoAlgorithm, fileName, key, iv);
   // 元ファイルの削除。
+  console.log(req.file.path);
   await fs.unlink(req.file.path);
 
   // パスから各ディレクトリ名の配列を取得。
@@ -97,7 +99,7 @@ router.post('/:id/upload', upload.single('file'), async (req, res) => {
   const encryptedAllPath = (joinDirs == '.') ? '' : joinDirs;
 
   // Json 形式で応答。
-  res.json({
+  res.status(200).json({
     file: {
       name: encryptedName,
       path: encryptedAllPath,
