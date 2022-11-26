@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import path from 'path';
+import path, { dirname } from 'path';
 import { fileURLToPath } from 'url';
 import crypto from 'crypto';
 import fs from 'fs-extra';
@@ -8,6 +8,7 @@ import multer from 'multer';
 import * as operateSqlite3 from '../src/lib/operate-sqlite3/index.mjs'; 
 import * as doCrypto from '../src/lib/do-crypto/index.mjs';
 import { node } from '../app.js';
+import last from 'it-last';
 
 const router = Router();
 const __filename = fileURLToPath(import.meta.url);
@@ -15,33 +16,58 @@ const __dirname = path.dirname(__filename);
 const cryptoAlgorithm = 'aes-256-cbc';
 const upload = multer({ dest: `${__dirname}/tmp/` });
 
+// 共通処理
+router.use('/*', (req, res, next) => { 
+  console.log(req.session.user);
+  if (!req.session.user) { // セッションが存在しない。
+    // /login にリダイレクト。
+    return res.redirect('/login');
+  }
+  next();
+});
+
 // /user への GET 処理。
 router.get('/', (req, res) => {
-  if (req.session.user) { // セッションが存在。
-    // /user/{id} にリダイレクト。
-    return res.redirect(`/user/${req.session.user}`);
-  }
-  // /login にリダイレクト。
-  res.redirect('/login');
+  // /user/{id} にリダイレクト。
+  res.redirect(`/user/${req.session.user}/directories`);
 });
 
 // /user/{ユーザID} への GET処理。
 router.get('/:id', (req, res) => {
-  if (req.session.user) { // セッションが存在。
-    const userID = req.params.id;
-    // id からhomeCidを取得。
-    const dbData = operateSqlite3.getData('user', `WHERE id='${userID}'`, 'home_cid');
-    const homeCid = dbData['home_cid'];
-    // ユーザ画面。
-    return res.render('user', { id: userID, home_cid: homeCid, cid: "home" });
-  }
-
-  // /login にリダイレクト
-  res.redirect('/login');
+  res.redirect(`/user/${req.params.id}/directories/`);
 });
 
+router.get('/:id/directories/:path(*|.?)', async (req, res, next) => {
+  const userID = req.params.id;
+  const reqPath = req.params.path;
+  const dbData = operateSqlite3.getData('user', `WHERE id='${userID}'`, 'home_cid');
+  const dirPath = path.join(dbData['home_cid'], reqPath);
+
+  let contents = new Array();
+  
+  console.log(dirPath);
+  try {
+    for await (let content of node.ls(dirPath, {timeout: 30000})) {
+      contents.push({ content: content, cid: content.cid.toString() });
+    }
+  } catch (err) {
+    console.log(err);
+    let error = new Error('Not found.');
+    error.status = 404;
+    return next(error);
+  }
+
+  res.render('user', {
+    id: userID,
+    data: {
+      path: reqPath,
+      contents: contents
+    }
+  });
+})
+
 router.get('/:id/files/:cid', (req, res) => {
-  res.render('download', { id: req.params.id, cid: req.params.cid });
+  res.render('download', { id: req.params.id, cid: req.params.cid, ext: req.query.ext });
 });
 
 // /user/{ユーザID}/upload への POST 処理。
@@ -49,15 +75,8 @@ router.get('/:id/files/:cid', (req, res) => {
 router.post('/:id/upload', upload.single('file'), async (req, res) => {
   const userID = req.params.id;
   const password = req.body['password'];
-  const allPath = (req.body['path'] == '') ? '' : req.body['path'].slice(1);
+  const filePath = (req.body['path'] == '') ? '' : req.body['path'].slice(1);
   let fileName = req.file.originalname;
- 
-  // ユーザの存在確認。
-  const countUserID = operateSqlite3.getCount('user', `WHERE id='${userID}'`);
-  console.log(countUserID);
-  if (countUserID == 0) {
-    return res.statusCode(400).send('Bad request');
-  }
 
   // データベースから salt と iv を取得。
   const dbData = operateSqlite3.getData('user', `WHERE id='${userID}'`, 'salt', 'iv');
@@ -67,7 +86,7 @@ router.post('/:id/upload', upload.single('file'), async (req, res) => {
   const iv = Buffer.from(dbData['iv'], 'base64');
   const key = crypto.scryptSync(password, salt, 32);
 
-  console.log(fileName);
+  //console.log(fileName);
 
   // ファイル読み込み。
   const buff = fs.readFileSync(req.file.path);
@@ -80,52 +99,93 @@ router.post('/:id/upload', upload.single('file'), async (req, res) => {
   await fs.unlink(req.file.path);
 
   // パスから各ディレクトリ名の配列を取得。
-  const Dirs = allPath.split('/');
-  // パスを暗号化名に変える。
+  const dirs = filePath.split('/');
+  // ディレクトリ名を暗号化名に変える。
   let encryptedDirs = [];
-  if (Dirs[0] == '') { // パスがホームディレクトリの場合。
+  if (dirs[0] == '') { // パスがホームディレクトリの場合。
     encryptedDirs.push('');
   } else {
     // encryptedDirs の各要素を暗号化後のディレクトリ名にする。
-    Dirs.forEach(dir => {
-      encryptedDirs.push(
-        doCrypto.encryptString(cryptoAlgorithm, dir, key, iv)
-      );
-    });
+    for await (let dir of dirs) {
+      encryptedDirs.push(doCrypto.encryptString(cryptoAlgorithm, dir, key, iv));
+    }
   }
 
   // 暗号化後のパスを作成。
   const joinDirs = path.posix.join(...encryptedDirs);
-  const encryptedAllPath = (joinDirs == '.') ? '' : joinDirs;
+  let encryptedFilePath = (joinDirs == '.') ? '' : joinDirs;
 
-  // Json 形式で応答。
-  res.status(200).json({
-    file: {
-      name: encryptedName,
-      path: encryptedAllPath,
-      buff: new Array(encryptedFile)
-    }
-  });
-
-  // サーバ側のパス。
+  // IPFSノードに追加するためのパス。
   const encryptedHomeName = doCrypto.encryptString(cryptoAlgorithm, 'home', key, iv);
-  const serverPath = `/${userID}/${encryptedHomeName}/${encryptedAllPath}/${encryptedName}`;
+  const encryptedPath = `/${userID}/${encryptedHomeName}/${encryptedFilePath}/${encryptedName}`;
 
   let stat, isExist = true;
   try { // ファイルの存在確認。
-    stat = await node.files.stat(serverPath);
+    stat = await node.files.stat(encryptedPath);
   } catch (err) { // 存在しない場合。
     isExist = false;
   }
   if (isExist) { // 存在していたらファイルを削除。
-    await node.files.rm(serverPath);
+    await node.files.rm(encryptedPath);
   }
-  // サーバ側のIPFSノードにファイルの追加。
-  await node.files.write(serverPath, new Uint8Array(encryptedFile), { create: true });
-  // クライアント側のホームディレクトリCIDを取得。
+  // IPFSノードにファイルの追加。
+  await node.files.write(encryptedPath, new Uint8Array(encryptedFile), { create: true });
+  // クライアントが使うホームディレクトリのCIDを取得。
   const homeCid = (await node.files.stat(`/${userID}/${encryptedHomeName}`)).cid.toString();
   // データベースの更新。
   operateSqlite3.update('user', `WHERE id='${userID}'`, ["home_cid"], [homeCid]);
+
+  res.status(200).end();
+});
+
+// /user/{ユーザID}/mkdir への POST 処理。
+// ディレクトリを作成する。
+router.post('/:id/mkdir', async (req, res) => {
+  const userID = req.params.id;
+  const password = req.body['password'];
+  const dirPath = (req.body['path'] == '') ? '' : req.body['path'].slice(1);
+  const addDirName = req.body['dir'];
+
+  // データベースから salt と iv を取得。
+  const dbData = operateSqlite3.getData('user', `WHERE id='${userID}'`, 'salt', 'iv');
+  
+  // salt、iv、key の設定。
+  const salt = Buffer.from(dbData['salt'], 'base64');
+  const iv = Buffer.from(dbData['iv'], 'base64');
+  const key = crypto.scryptSync(password, salt, 32);
+
+  // パスから各ディレクトリ名の配列を取得。
+  const dirs = dirPath.split('/');
+  // ディレクトリ名を暗号化名に変える。
+  let encryptedDirs = [];
+  if (dirs[0] == '') { // パスがホームディレクトリの場合。
+    encryptedDirs.push('');
+  } else {
+    // encryptedDirs の各要素を暗号化後のディレクトリ名にする。
+    for await (let dir of dirs) {
+      encryptedDirs.push(doCrypto.encryptString(cryptoAlgorithm, dir, key, iv));
+    }
+  }
+
+  // 暗号化後のパスを作成。
+  const joinDirs = path.posix.join(...encryptedDirs);
+  const encryptedDirPath = (joinDirs == '.') ? '' : joinDirs;
+
+  // ディレクトリ名の暗号化。
+  const encryptedAddDirName = doCrypto.encryptString(cryptoAlgorithm, addDirName, key, iv);
+
+  // IPFSノードに追加するためのパス。
+  const encryptedHomeName = doCrypto.encryptString(cryptoAlgorithm, 'home', key, iv);
+  const encryptedPath = `/${userID}/${encryptedHomeName}/${encryptedDirPath}/${encryptedAddDirName}`;
+
+  // IPFSノードにディレクトリの追加。
+  await node.files.mkdir(encryptedPath, { parent: true });
+  // クライアントが使うホームディレクトリのCIDを取得。
+  const homeCid = (await node.files.stat(`/${userID}/${encryptedHomeName}`)).cid.toString();
+  // データベースの更新。
+  operateSqlite3.update('user', `WHERE id='${userID}'`, ["home_cid"], [homeCid]);
+
+  res.status(200).end();
 });
 
 // /user/{ユーザID}/decrypt/text への POST処理。
@@ -134,12 +194,6 @@ router.post('/:id/decrypt/text', (req, res) => {
   const userID = req.params.id;
   const password = req.body['password'];
   const text = req.body['text'];
-  
-  // ユーザの存在確認。
-  const countUserID = operateSqlite3.getCount('user', `WHERE id='${userID}'`);
-  if (countUserID == 0) {
-    return res.statusCode(400).send('Bad request');
-  }
 
   // データベースから salt と iv を取得。
   const dbData = operateSqlite3.getData('user', `WHERE id='${userID}'`, 'salt', 'iv');
@@ -158,21 +212,10 @@ router.post('/:id/decrypt/text', (req, res) => {
 
 // /user/{ユーザID}/decrypt/file への POST処理。
 // 暗号化ファイルの復号化用。
-router.post('/:id/decrypt/file', (req, res) => {
+router.post('/:id/decrypt/file', async (req, res) => {
   const userID = req.params.id;
   const password = req.body['password'];
-  const encryptedBuffer = req.body['buffer'];
-  // Json to array
-  let encryptedBufferArray = new Array();
-  for (let key in encryptedBuffer) {
-    encryptedBufferArray.push(encryptedBuffer[key]);
-  }
-
-  // ユーザの存在確認。
-  const countUserID = operateSqlite3.getCount('user', `WHERE id='${userID}'`);
-  if (countUserID == 0) {
-    return res.statusCode(400).send('Bad request');
-  }
+  const cid = req.body['cid'];
 
   // データベースから salt と iv を取得。
   const dbData = operateSqlite3.getData('user', `WHERE id='${userID}'`, 'salt', 'iv');
@@ -182,8 +225,13 @@ router.post('/:id/decrypt/file', (req, res) => {
   const iv = Buffer.from(dbData['iv'], 'base64');
   const key = crypto.scryptSync(password, salt, 32);
   
+  let encryptedBuffer = new Array();
+  for await (let chunk of node.cat(cid)) {
+    encryptedBuffer = chunk;
+  };
+
   // ファイルの復号化。
-  const fileBuffer = doCrypto.decryptFile(cryptoAlgorithm, new Uint8Array(encryptedBufferArray), key, iv);
+  const fileBuffer = doCrypto.decryptFile(cryptoAlgorithm, new Uint8Array(encryptedBuffer), key, iv);
 
   // Json 形式で応答。
   res.json({ fileBuffer: fileBuffer});
