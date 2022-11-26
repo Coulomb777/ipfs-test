@@ -46,7 +46,8 @@
             <img src="/public/images/img-loading.gif" width="40" height="40" alt="Now Loading..." />
             <p>Now Loading...</p>
         </div>
-        <div class="contents" style="display: none;">
+        <div class="contents" style="display: none">
+            <!-- display none-->
             <div class="row p-2 border">
                 <div class="col-9">
                     <ul class="nav">
@@ -153,8 +154,7 @@
 </body>
 <script>
     const userID = "<%= id %>";
-    const homeCid = "<%= home_cid %>";
-    const cid = "<%= cid %>";
+    const data = JSON.parse('<%- JSON.stringify(data) %>');
 </script>
 <script src ="/public/javascripts/user.js"></script>
 </html>

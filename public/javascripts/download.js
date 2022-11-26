@@ -1,16 +1,9 @@
 
 $(async () => {
 
-    let ipfs = await window.IpfsCore.create({ repo: userID });
-    // 復号化するファイルのバッファーを取得。
-    let buffer = new Array(); 
-    for await (const chunk of ipfs.cat(cid)) {
-        buffer.push(chunk);
-    }
-
     let json = { 
         "password" : localStorage.getItem(userID),
-        "buffer" : buffer[0]
+        "cid" : cid
     }
     // 復号化のためにPOST
     $.ajax({
@@ -28,19 +21,11 @@ $(async () => {
 
         const a = document.createElement("a");
         document.body.appendChild(a);
-        a.download = 'file.jpg';
+        a.download = `${cid}.${ext == '' ? 'unknown' : ext}`;
         a.href = downloadUrl;
         a.click();
         a.remove();
         URL.revokeObjectURL(downloadUrl);
-/*
-        $('<button>').attr({
-            id: 'download',
-            href: downloadUrl
-        }).appendTo('body');
-        $('#download').trigger("click");
-        window.URL.revokeObjectURL(downloadUrl);
-            */
     });
 
 });
