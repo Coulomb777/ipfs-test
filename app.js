@@ -8,7 +8,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import bodyParser from 'body-parser';
 import logger from 'morgan';
-import * as IPFS from 'ipfs-core';
+import * as ipfsDaemon from 'ipfs-daemon'
 
 import indexRouter from './routes/index.js';
 import loginRouter from './routes/login.js';
@@ -16,12 +16,13 @@ import registerRouter from './routes/register.js';
 import userRouter from './routes/user.js';
 
 import * as operateSqlite3 from './src/lib/operate-sqlite3/index.mjs';
-
 const app = express();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const sessionStore = connectSqlite3(session);
-export const node = await IPFS.create({ repo: `${__dirname}/ipfs/` });
+const daemon = new ipfsDaemon.Daemon({ repo: `${__dirname}/ipfs/` });
+await daemon.start();
+export const node = daemon._ipfs;
 operateSqlite3.createDB();
 operateSqlite3.createTable(
   'user',

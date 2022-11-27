@@ -1,14 +1,16 @@
 import { Router } from 'express';
-import path, { dirname } from 'path';
+import path from 'path';
 import { fileURLToPath } from 'url';
 import crypto from 'crypto';
 import fs from 'fs-extra';
 import multer from 'multer';
+import { concat as uint8ArrayConcat } from 'uint8arrays/concat'
+import all from 'it-all';
 
 import * as operateSqlite3 from '../src/lib/operate-sqlite3/index.mjs'; 
 import * as doCrypto from '../src/lib/do-crypto/index.mjs';
 import { node } from '../app.js';
-import last from 'it-last';
+
 
 const router = Router();
 const __filename = fileURLToPath(import.meta.url);
@@ -90,12 +92,13 @@ router.post('/:id/upload', upload.single('file'), async (req, res) => {
 
   // ファイル読み込み。
   const buff = fs.readFileSync(req.file.path);
+  console.log(buff);
   // ファイルの暗号化。
   const encryptedFile = doCrypto.encryptFile(cryptoAlgorithm, buff, key, iv);
   // ファイル名の暗号化。
   const encryptedName = doCrypto.encryptString(cryptoAlgorithm, fileName, key, iv);
   // 元ファイルの削除。
-  console.log(req.file.path);
+  console.log(encryptedFile);
   await fs.unlink(req.file.path);
 
   // パスから各ディレクトリ名の配列を取得。
@@ -118,6 +121,7 @@ router.post('/:id/upload', upload.single('file'), async (req, res) => {
   // IPFSノードに追加するためのパス。
   const encryptedHomeName = doCrypto.encryptString(cryptoAlgorithm, 'home', key, iv);
   const encryptedPath = `/${userID}/${encryptedHomeName}/${encryptedFilePath}/${encryptedName}`;
+  console.log(encryptedPath)
 
   let stat, isExist = true;
   try { // ファイルの存在確認。
@@ -188,6 +192,40 @@ router.post('/:id/mkdir', async (req, res) => {
   res.status(200).end();
 });
 
+router.post('/:id/rmFiles', async (req, res) => {
+  const userID = req.params.id;
+  const reqPath = req.body['path'];
+  const password = req.body['password'];
+  const targetFiles = req.body['target_files'];
+
+  // データベースから salt と iv を取得。
+  const dbData = operateSqlite3.getData('user', `WHERE id='${userID}'`, 'salt', 'iv');
+
+  // salt、iv、key の設定。
+  const salt = Buffer.from(dbData['salt'], 'base64');
+  const iv = Buffer.from(dbData['iv'], 'base64');
+  const key = crypto.scryptSync(password, salt, 32);
+
+  const encryptedHomeName = doCrypto.encryptString(cryptoAlgorithm, 'home', key, iv);
+
+  try {
+    for (let target of targetFiles) {
+      const targetName = doCrypto.encryptString(cryptoAlgorithm, target, key, iv);
+      const targetPath = path.posix.join(reqPath, targetName);
+      await node.files.rm(`/${userID}/${encryptedHomeName}/${targetPath}`, { recursive: true });
+    }
+  } catch (err) {
+    throw err;
+  }
+
+  // クライアントが使うホームディレクトリのCIDを取得。
+  const homeCid = (await node.files.stat(`/${userID}/${encryptedHomeName}`)).cid.toString();
+  // データベースの更新。
+  operateSqlite3.update('user', `WHERE id='${userID}'`, ["home_cid"], [homeCid]);
+
+  res.status(200).end();
+})
+
 // /user/{ユーザID}/decrypt/text への POST処理。
 // 暗号化文字列の復号化用。
 router.post('/:id/decrypt/text', (req, res) => {
@@ -204,10 +242,10 @@ router.post('/:id/decrypt/text', (req, res) => {
   const key = crypto.scryptSync(password, salt, 32);
 
   // 文字列の復号化。
-  const encryptedString = doCrypto.decryptString(cryptoAlgorithm, text, key, iv);
+  const decryptedString = doCrypto.decryptString(cryptoAlgorithm, text, key, iv);
 
   // Json 形式で応答。
-  res.json({ text: encryptedString });
+  res.json({ text: decryptedString });
 });
 
 // /user/{ユーザID}/decrypt/file への POST処理。
@@ -225,14 +263,11 @@ router.post('/:id/decrypt/file', async (req, res) => {
   const iv = Buffer.from(dbData['iv'], 'base64');
   const key = crypto.scryptSync(password, salt, 32);
   
-  let encryptedBuffer = new Array();
-  for await (let chunk of node.cat(cid)) {
-    encryptedBuffer = chunk;
-  };
+  // 暗号化されたファイルのバイナリ
+  let encryptedBuffer = uint8ArrayConcat(await all(node.cat(cid)));
 
   // ファイルの復号化。
   const fileBuffer = doCrypto.decryptFile(cryptoAlgorithm, new Uint8Array(encryptedBuffer), key, iv);
-
   // Json 形式で応答。
   res.json({ fileBuffer: fileBuffer});
 
