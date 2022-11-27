@@ -19,7 +19,8 @@
     "fs-extra": "^10.1.0",
     "http-errors": "~1.6.3",
     "iconv-lite": "^0.6.3",
-    "ipfs-core": "^0.17.0",
+    "ipfs-daemon": "^0.15.0",
+    "it-all": "^2.0.0",
     "it-last": "^2.0.0",
     "morgan": "~1.9.1",
     "multer": "^1.4.5-lts.1"

@@ -6,7 +6,7 @@ $(async () => {
         "cid" : cid
     }
     // 復号化のためにPOST
-    $.ajax({
+    await $.ajax({
         url: `/user/${userID}/decrypt/file`,
         type: 'post',
         data: JSON.stringify(json),
