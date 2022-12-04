@@ -36,37 +36,40 @@ router.post('/', async (req, res) => {
         return res.render('login', { id: '', invalidInput: true });
     }
 
+    const userID = formData[0];
+    const password = formData[1];
+
     // ユーザの存在確認。
-    const countUserID = operateSqlite3.getCount('user', `WHERE id='${formData[0]}'`);
+    const countUserID = operateSqlite3.getCount('user', `WHERE id='${userID}'`);
     if (countUserID == 0) { // ユーザがいない。
         // 登録画面。
         return res.redirect('/register');
     }
 
     // データベースからid に対する iv, salt を取得。
-    const dbData = operateSqlite3.getData('user', `WHERE id='${formData[0]}'`, 'salt', 'iv');
+    const dbData = operateSqlite3.getData('user', `WHERE id='${userID}'`, 'salt', 'iv');
     let encryptedHomeDir;
 
     try { // idからホームディレクトリ情報を取得。
-        encryptedHomeDir = await last(node.files.ls(`/${formData[0]}`, { timeout: 30000 }));
+        encryptedHomeDir = (await last(node.files.ls(`/${userID}`, { timeout: 30000 }))).name;
     } catch (err) {
         throw err;
     }
 
     try { // 復号化による認証。
-        const salt = Buffer.from(dbData['salt'], 'base64');
-        const iv = Buffer.from(dbData['iv'], 'base64');
-        const key = crypto.scryptSync(formData[1], salt, 32);
+        const salt = Buffer.from(dbData['salt'], 'hex');
+        const iv = Buffer.from(dbData['iv'], 'hex');
+        const key = crypto.scryptSync(password, salt, 32);
         // 復号化。
-        doCrypto.decryptString(cryptoAlgorithm, encryptedHomeDir.name, key, iv);
+        doCrypto.decryptString(cryptoAlgorithm, encryptedHomeDir, key, iv);
         // セッション情報にidを記録。
-        req.session.user = formData[0];
+        req.session.user = userID;
         // /user/{id} にリダイレクト。
-        res.redirect(`/user/${formData[0]}`);
+        res.redirect(`/user/${userID}`);
     } catch (err) { // パスワードが違う。
         // ログイン画面に戻る。
         console.log('invalid password');
-        res.render('login', { id: formData[0], invalidInput: true });
+        res.render('login', { id: userID, invalidInput: true });
     }
 });
 

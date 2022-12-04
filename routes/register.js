@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import crypto from 'crypto';
+import path from 'path';
 
 import * as doCrypto from '../src/lib/do-crypto/index.mjs';
 import * as stringValidation from '../src/lib/string-validation/index.mjs';
@@ -82,26 +83,57 @@ router.post('/processing', async (req, res) => {
         return res.redirect('/register')
     }
 
+    const userID = formData[0];
+    const password = formData[1];
+
     let salt;
     while (true) { // ソルトの生成。
         salt = crypto.randomBytes(16);
         // salt の重複確認。
-        let saltCount = operateSqlite3.getCount('user', `WHERE salt='${salt.toString('base64')}'`);
+        let saltCount = operateSqlite3.getCount('user', `WHERE salt='${salt.toString('hex')}'`);
         // 重複してないものを使う。
         if (saltCount == 0) break;
     }
     const iv = crypto.randomBytes(16);
-    const key = crypto.scryptSync(formData[1], salt, 32);
+    const key = crypto.scryptSync(password, salt, 32);
     // 文字列 'home' を暗号化。
     const encryptedHomeName = doCrypto.encryptString(cryptoAlgorithm, 'home', key, iv);
-    console.log(`/${formData[0]}/${encryptedHomeName}`);
+    // ホームディレクトリのパス
+    const homeDirPath = path.join(userID, encryptedHomeName);
 
-    // サーバ側のIPFSノードにホームディレクトリとそれを参照するためのディレクトリを追加。
-    await node.files.mkdir(`/${formData[0]}/${encryptedHomeName}`, { parents: true });
-    // homeCid: クライアント側のホームディレクトリのCIDを取得。
-    const homeCid = (await node.files.stat(`/${formData[0]}/${encryptedHomeName}`)).cid.toString();
+    // IPFSノードにホームディレクトリを追加。
+    await node.files.mkdir(`/${homeDirPath}`, { parents: true });
+    // homeCid: ホームディレクトリのCIDを取得。
+    const homeCid = (await node.files.stat(`/${homeDirPath}`)).cid.toString();
+
+    // コンテンツの共有用RSA鍵ペア。
+    const {
+        publicKey,
+        privateKey
+    } = crypto.generateKeyPairSync('rsa', {
+        modulusLength: 4096,
+        publicKeyEncoding: {
+            type: 'spki',
+            format: 'pem',
+        },
+        privateKeyEncoding: {
+            type: 'pkcs8',
+            format: 'pem',
+        },
+    });
+
+    const encryptedPrivateKey = doCrypto.encryptString(cryptoAlgorithm, privateKey, key, iv);
+
     // データベースにユーザ情報を保存。
-    operateSqlite3.insertData('user', formData[0], homeCid, salt.toString('base64'), iv.toString('base64'));
+    operateSqlite3.insertData(
+        'user',
+        userID,
+        homeCid,
+        publicKey,
+        encryptedPrivateKey,
+        salt.toString('hex'),
+        iv.toString('hex')
+    );
     // セッション情報をリセットし、ログイン画面にリダイレクト。
     req.session.user = null;
     res.redirect('/login')

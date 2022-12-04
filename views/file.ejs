@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- jQuery -->
+    <script src="/public/javascripts/jquery-3.6.1.min.js"></script>
+    <!-- Bootstrap css-->
+    <link rel="stylesheet" type="text/css" href="/public/stylesheets/bootstrap-5.0.2/bootstrap.min.css">
+    <script src="/public/javascripts/bootstrap-5.0.2/bootstrap.bundle.min.js"></script>
+    <style>
+        body {
+            background-color: black;
+        }
+        .container {
+            position: relative;
+            background-color: white;
+            padding-bottom: 56.25%;
+            padding-top: 35px;
+            height: 0;
+            width: auto;
+            overflow: hidden;
+        }
+        .container iframe {
+            display: block;
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            left: 0;
+        }
+        iframe:not(.image) {
+            top: 0;
+        }
+        iframe.image {
+            top: 50%;
+            transform: translateY(-50%);
+            -webkit-transform: translateY(-50%);
+            -ms-transform: translateY(-50%);
+        }
+    </style>
+    <title><%= cid %></title>
+</head>
+<body>
+    <div class="container my-5 border">
+    </div> 
+</body>
+<script>
+    const userID = "<%= id %>";
+    const cid = "<%= cid %>";
+</script>
+<script src="/public/javascripts/file.js"></script>
+</html>

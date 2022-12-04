@@ -25,11 +25,13 @@ await daemon.start();
 export const node = daemon._ipfs;
 operateSqlite3.createDB();
 operateSqlite3.createTable(
-  'user',
-  'id STRING UNIQUE',
-  'home_cid STRING',
-  'salt STRING',
-  'iv STRING'
+  'user',                             // テーブル名。
+  'id PRIMARY KEY',                   // ユーザID。
+  'home_cid STRING',                  // ホームディレクトリのCID。
+  'encrypt_key_fs STRING',            // 共有コンテンツ暗号化キー。
+  'encrypted_decrypt_key_fs STRING',  // 共有コンテンツ復号化キー（暗号化済み）。
+  'salt STRING UNIQUE',               // ソルト。
+  'iv STRING'                         // 初期化ベクトル。
 );
 
 // view engine setup

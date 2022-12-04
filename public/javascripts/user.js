@@ -86,7 +86,7 @@ async function addFile(file) {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('password', localStorage.getItem(userID));
-    formData.append('path', $('#path').text());
+    formData.append('path', currentPath);
     // /user/{ユーザID}/upload にFormData をPOST。
     await $.ajax({
         url: `/user/${userID}/upload`,
@@ -101,7 +101,7 @@ async function addFile(file) {
 
 async function makeDirectory() {
     const params = new URLSearchParams();
-    params.append('path', $('#path').text());
+    params.append('path', currentPath);
     params.append('password', localStorage.getItem(userID));
     params.append('dir', $('#dir-name').val());
     // /user/{ユーザID}/mkdir に params をPOST。
@@ -131,7 +131,7 @@ async function listFile(cid, name) {
         const ext = data.text.split('.').pop();
         $(".files").append(
               `<tr>`
-            + `<td class="clickable-row file" href="/user/${userID}/files/${cid}?ext=${ext}">`
+            + `<td class="clickable-row file" href="/user/${userID}/files/${cid}">`
             + `<input class="selection" type="checkbox" style="display: inline-block; _display: inline">`
             + `&emsp;`
             + `<div class="content-icon" style="display: inline-block; _display: inline">`
@@ -142,7 +142,7 @@ async function listFile(cid, name) {
             + `</svg>`
             + `</div>`
             + `&emsp;`
-            + `<div class="file-name" style="display: inline-block; _display: inline">`
+            + `<div class="file-name" style="display: inline-block; _display: inline" id="${name}">`
             + `${data.text}`
             + `</div>`
             + `<td scope="row">`
@@ -162,7 +162,7 @@ async function listFile(cid, name) {
             + `</svg>`
             + `</div>`
             + `&emsp;`
-            + `<div class="file-name" style="display: inline-block; _display: inline; color: gray">`
+            + `<div class="file-name" style="display: inline-block; _display: inline; color: gray" id="${name}">`
             + `${name}`
             + `</div>`
             + `<td scope="row">`
@@ -196,7 +196,7 @@ async function listDir(name) {
             + `</svg>`
             + `</div>`
             + `&emsp;`
-            + `<div class="file-name" style="display: inline-block; _display: inline">`
+            + `<div class="file-name" style="display: inline-block; _display: inline" id="${name}">`
             + `${data.text}`
             + `</div>`
             + `<td scope="row">`
@@ -216,7 +216,7 @@ async function listDir(name) {
             + `</svg>`
             + `</div>`
             + `&emsp;`
-            + `<div class="file-name" style="display: inline-block; _display: inline; color: gray">`
+            + `<div class="file-name" style="display: inline-block; _display: inline; color: gray" id="${name}">`
             + `${name}`
             + `</div>`
             + `<td scope="row">`
@@ -229,7 +229,7 @@ async function rmFiles() {
     let targetFiles = new Array();
     for (let target of $('.selection:checked')) {
         // 削除するコンテンツの名前を追加。
-        targetFiles.push($(target).siblings('.file-name').text());
+        targetFiles.push($(target).siblings('.file-name').attr('id'));
     }
 
     const json = {
