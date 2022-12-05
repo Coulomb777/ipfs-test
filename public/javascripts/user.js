@@ -7,7 +7,6 @@ $(async () => { // ページ読み込み中の処理。
     // ロード画面を隠す・ページ内容の表示。
     await $('.loader').fadeOut();
     await $('.contents').delay(400).fadeIn();
-
 });
 
 $(window).on('load', async () => { // ページ読み込み終了後の処理。
@@ -33,8 +32,21 @@ $(window).on('load', async () => { // ページ読み込み終了後の処理。
 
     // 削除ボタンを押したときの処理。
     $(document).on('click', '#remove', () => {
-        console.log('remove')
         rmFiles();
+        return false;
+    });
+
+    // ファイル共有モーダルを開いた時の処理。
+    $('#file-share').on('show.bs.modal', (e) => {
+        const shareBtn = $(e.relatedTarget);
+        const cid = shareBtn.data('cid');
+
+        $('#modal-cid').text(cid);
+    })
+
+    // ファイル共有ボタン。
+    $(document).on('click', '#share', () => {
+        shareFile();
         return false;
     });
 
@@ -68,16 +80,16 @@ $(window).on('load', async () => { // ページ読み込み終了後の処理。
     })
 
     // ファイルコンテンツをクリックしたときの処理。(hrefの内容に飛ぶ。別タブ。)
-    $(document).on('dblclick', '.clickable-row.file', (e) => {
+    $(document).on('dblclick', '.list-group-item-action.file', (e) => {
         window.open($(e.currentTarget).attr('href'));
     });
 
     // ディレクトリコンテンツをクリックしたときの処理。(hrefの内容に飛ぶ)
-    $(document).on('dblclick', '.clickable-row.dir', (e) => {
+    $(document).on('dblclick', '.list-group-item-action.dir', (e) => {
         window.location.href = $(e.currentTarget).attr('href');
     });
 
-    $("#sortableArea").sortable();
+    $('.sortable').sortable();
 });
 
 /////////////////////////////////////////////////////////////////////////
@@ -85,6 +97,7 @@ async function addFile(file) {
     // FormDataの作成。
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('file-name', file.name)
     formData.append('password', localStorage.getItem(userID));
     formData.append('path', currentPath);
     // /user/{ユーザID}/upload にFormData をPOST。
@@ -114,7 +127,6 @@ async function makeDirectory() {
     }).done(() => {
         return;
     });
-
 }
 
 async function listFile(cid, name) {
@@ -128,10 +140,9 @@ async function listFile(cid, name) {
         contentType: false,
         processData: false
     }).done((data) => {
-        const ext = data.text.split('.').pop();
         $(".files").append(
-              `<tr>`
-            + `<td class="clickable-row file" href="/user/${userID}/files/${cid}">`
+            `<li class="list-group-item list-group-item-action d-flex justify-content-between align-items-center file" href="/user/${userID}/files/${cid}">`
+            + `<div class="content">`
             + `<input class="selection" type="checkbox" style="display: inline-block; _display: inline">`
             + `&emsp;`
             + `<div class="content-icon" style="display: inline-block; _display: inline">`
@@ -145,13 +156,30 @@ async function listFile(cid, name) {
             + `<div class="file-name" style="display: inline-block; _display: inline" id="${name}">`
             + `${data.text}`
             + `</div>`
-            + `<td scope="row">`
-            + `</tr>`
+            + `</div>`
+            + `<span class="badge">`
+            + `<div class="btn-group dropend">`
+            + `<button type="button" class="btn btn-sm dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">`
+            + `<i class="bi bi-three-dots fa-xs"></i>`    
+            + `</button>`
+            + `<ul class="dropdown-menu">`
+            + `<li>`
+            + `<a class="dropdown-item" href="/user/${userID}/download/${cid}" target="_blank" rel="noopener noreferrer">ダウンロード</a>`
+            + `</li>`
+            + `<li>`
+            + `<label class="dropdown-item" id="share-file">`
+            + `共有`
+            + `<button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#file-share" data-cid="${cid}" hidden></button>`
+            + `</label>`
+            + `</li>`
+            + `</ul>`
+            + `</div>`
+            + `</span>`
+            + `</li>`
         );
     }).fail(() => {
         $(".files").append(
-            `<tr>`
-            + `<td>`
+            `<li class="list-group-item list-group-item-action file" href="/user/${userID}/files/${cid}">`
             + `<input class="selection" type="checkbox" style="display: inline-block; _display: inline">`
             + `&emsp;`
             + `<div class="content-icon" style="display: inline-block; _display: inline">`
@@ -165,9 +193,8 @@ async function listFile(cid, name) {
             + `<div class="file-name" style="display: inline-block; _display: inline; color: gray" id="${name}">`
             + `${name}`
             + `</div>`
-            + `<td scope="row">`
-            + `</tr>`
-      );
+            + `</li>`
+        );
     });
 }
 
@@ -184,8 +211,8 @@ async function listDir(name) {
     }).done((data) => {
         const dirPath = currentPath == '' ? name : `${currentPath}/${name}`;
         $(".files").append(
-              `<tr>`
-            + `<td class="clickable-row dir" href="/user/${userID}/directories/${dirPath}">`
+            `<li class="list-group-item list-group-item-action  d-flex justify-content-between align-items-center dir" href="/user/${userID}/directories/${dirPath}">`
+            + `<div class="content">`
             + `<input class="selection" type="checkbox" style="display: inline-block; _display: inline">`
             + `&emsp;`
             + `<div class="content-icon" style="display: inline-block; _display: inline">`
@@ -199,13 +226,12 @@ async function listDir(name) {
             + `<div class="file-name" style="display: inline-block; _display: inline" id="${name}">`
             + `${data.text}`
             + `</div>`
-            + `<td scope="row">`
-            + `</tr>`
+            + `</div>`
+            + `</li>`
         );
     }).fail(() => {
         $(".files").append(
-            `<tr>`
-            + `<td>`
+            `<li class="list-group-item list-group-item-action dir" href="/user/${userID}/directories/${dirPath}">`
             + `<input class="selection" type="checkbox" style="display: inline-block; _display: inline">`
             + `&emsp;`
             + `<div class="content-icon" style="display: inline-block; _display: inline">`
@@ -219,8 +245,7 @@ async function listDir(name) {
             + `<div class="file-name" style="display: inline-block; _display: inline; color: gray" id="${name}">`
             + `${name}`
             + `</div>`
-            + `<td scope="row">`
-            + `</tr>`
+            + `</li>`
       );
     });
 }
@@ -249,21 +274,9 @@ async function rmFiles() {
     });
 }
 
-function makePath(currentPath, name) {
-    let fixedName;
-    if (name[0] == '/') {
-        fixedName = name.substr(1, name.length - 1);
-    } else if (name[length - 1] == '/') {
-        fixedName = name.substr(0, name.length - 2);
-    } else {
-        fixedName = name;
-    }
-
-    return currentPath + (currentPath == '/' ? '' : '/') + fixedName;
-}
-
 async function loadDirectory() {
     let contentsIsExist = false;
+    //　ディレクトリ内容の反映。
     for (let result of data.contents) {
         contentsIsExist = true;
         if (result.content.type == "file") {
@@ -272,7 +285,7 @@ async function loadDirectory() {
             listDir(result.content.name);
         }
     } 
-
+    // パス反映。
     if (currentPath != '') {
         const decryptedDirs = await getDecryptedDirsName();
         let dirHref = currentPath;
@@ -281,15 +294,12 @@ async function loadDirectory() {
             dirHref = dirHref.substring(0, dirHref.lastIndexOf('/'));
         }  
     }
-
+    // からディレクトリの時に表示。
     if (!contentsIsExist) {
         $('.files').html('<center style="color: gray">No contents</center>')
     }
 
 }
-
-// $('#path').append('/<a href="#" class="path">dir1</a>')
-// /dir1/dir2/dir3 -> $(".paht").prevAll() = [dir1, dir2, dir3]
 
 async function getDecryptedDirsName() {
     const encryptedDirs = currentPath.split('/');
@@ -309,4 +319,9 @@ async function getDecryptedDirsName() {
         });
     }
     return dirs;
+}
+
+async function shareFile() {
+    const cid = $('#modal-cid').text();
+
 }

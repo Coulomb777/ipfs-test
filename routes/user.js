@@ -81,13 +81,18 @@ router.get('/:id/files/:cid', async (req, res) => {
   res.render('file', { id: req.params.id, cid: req.params.cid });
 });
 
+router.get('/:id/download/:cid', async (req, res) => {
+  res.render('download', { id: req.params.id, cid: req.params.cid });
+});
+
 // /user/{ユーザID}/upload への POST 処理。
 // ファイルのアップロードに対する処理。
 router.post('/:id/upload', upload.single('file'), async (req, res) => {
   const userID = req.params.id;
   const password = req.body['password'];
   const filePath = req.body['path'];
-  const fileName = req.file.originalname;
+  const fileName = req.body['file-name'];
+  //req.file.originalname;
 
   // データベースから salt と iv を取得。
   const dbData = operateSqlite3.getData('user', `WHERE id='${userID}'`, 'salt', 'iv');
@@ -182,21 +187,12 @@ router.post('/:id/mkdir', async (req, res) => {
 router.post('/:id/rmFiles', async (req, res) => {
   const userID = req.params.id;
   const reqPath = req.body['path'];
-  const password = req.body['password'];
   const targetFiles = req.body['target_files'];
-
-  // データベースから salt と iv を取得。
-  const dbData = operateSqlite3.getData('user', `WHERE id='${userID}'`, 'salt', 'iv');
-
-  // salt、iv、key の設定。
-  const salt = Buffer.from(dbData['salt'], 'hex');
-  const iv = Buffer.from(dbData['iv'], 'hex');
-  const key = crypto.scryptSync(password, salt, 32);
 
   // ホームディレクトリのパス
   const homeDirPath = path.join(userID, (await last(node.files.ls(`/${userID}`))).name);
 
-  try {
+  try { //コンテンツの削除
     for (let target of targetFiles) {
       const targetPath = path.posix.join(reqPath, target);
       await node.files.rm(`/${path.join(homeDirPath, targetPath)}`, { recursive: true });
@@ -260,7 +256,6 @@ router.post('/:id/decrypt/file', async (req, res) => {
   if (!type) {
     type = { ext: 'text', mime: 'text/plain' };
   }
-  console.log(type)
   
   // Json 形式で応答。
   res.json(
