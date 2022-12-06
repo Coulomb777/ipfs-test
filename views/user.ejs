@@ -14,23 +14,39 @@
     <!-- Bootstrap css-->
     <link rel="stylesheet" type="text/css" href="/public/stylesheets/bootstrap-5.0.2/bootstrap.min.css">
     <script src="/public/javascripts/bootstrap-5.0.2/bootstrap.bundle.min.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" type="text/css" href="/public/stylesheets/bootstrap-icons-1.8.0.css">
+    <!-- tablesorter-->
+    <script src="/public/javascripts/tablesorter-2.31.0.js"></script>
     <style>
-        .file .dropdown-toggle::after {
-            display: none;
+        .table {
+            user-select: none;
         }
         .file {
-            padding-top: 0;
-            padding-bottom: 0;
+            cursor: pointer;
+            cursor: hand;
         }
         .dir {
-            padding: auto;
+            cursor: pointer;
+            cursor: hand;
+        }
+        .file-menu .dropdown-toggle::after {
+            display: none;
+        }
+        .table-radius {
+            border: 1px solid;
+            border-radius: 5px;
+            border-spacing: 0;
+            border-collapse: separate;
+            padding-right: 0;
+            padding-left: 0;
+        }
+        .table-radius tr:last-child td {
+        border-bottom: none;
         }
     </style>
     <title>IPFS</title>
 </head>
 <body>
-
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
         <div class="container-fluid">
             <a class="navbar-brand" href="#">IPFS</a>
@@ -50,7 +66,7 @@
         </div>
     </nav>
     <div class="container my-5 p-5 border rounded">
-        <h2 class="pb-4" id="id"><%= id %></h2>
+        <h2 class="pb-4" id="id" style="user-select: none"><%= id %></h2>
         <div class="loader" style="text-align: center;">
             <div class="d-flex justify-content-center">
                 <div class="spinner-border" role="status"></div>
@@ -60,7 +76,7 @@
             </div>
         </div>
         <div class="contents" style="display: none">
-            <div class="row p-2 border">
+            <div class="row">
                 <div class="col-9 text-break">
                     <ul class="nav">
                         <li class="nav-item">
@@ -102,9 +118,19 @@
                 <hr>
                 <div class="col-12">
                     <div class="drop-area">
-                        <ul class="list-group files sortable">
-                           
-                        </ul>
+                        <table class="table table-sm table-hover table-radius" id="content-list">
+                            <thead style="background-color: rgb(32, 32, 32); color: aliceblue;">
+                                <tr>
+                                    <th class="th-sm text-center" style="width: 5%"></th>
+                                    <th class="th-sm" style="width:5%"></th>
+                                    <th class="th-sm" style="width: 85%">ファイル名</th>
+                                    <th class="th-sm" style="width: 5%"></th>
+                                </tr>
+                            </thead>
+                            <tbody class="files">
+
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>

@@ -8,6 +8,7 @@ import { concat as uint8ArrayConcat } from 'uint8arrays/concat'
 import * as fileType from 'file-type';
 import all from 'it-all';
 import last from 'it-last';
+import stream from 'stream';
 
 import * as operateSqlite3 from '../src/lib/operate-sqlite3/index.mjs'; 
 import * as doCrypto from '../src/lib/do-crypto/index.mjs';
@@ -102,14 +103,11 @@ router.post('/:id/upload', upload.single('file'), async (req, res) => {
   const iv = Buffer.from(dbData['iv'], 'hex');
   const key = crypto.scryptSync(password, salt, 32);
 
-  // ファイル読み込み。
-  const buff = fs.readFileSync(req.file.path);
-  // ファイルの暗号化。
-  const encryptedFile = doCrypto.encryptFile(cryptoAlgorithm, buff, key, iv);
+  // 暗号器
+  const cipher = crypto.createCipheriv(cryptoAlgorithm, key, iv);
+
   // ファイル名の暗号化。
   const encryptedName = doCrypto.encryptString(cryptoAlgorithm, fileName, key, iv);
-  // 元ファイルの削除。
-  await fs.unlink(req.file.path);
 
   // ホームディレクトリからのパス
   const filePathFromHomeDir = path.posix.join(filePath, encryptedName);
@@ -128,8 +126,12 @@ router.post('/:id/upload', upload.single('file'), async (req, res) => {
     await node.files.rm(`/${absFilePath}`);
   }
 
+  // ファイルストリーム。
+  const fstream = fs.createReadStream(req.file.path);
   // IPFSノードにファイルの追加。
-  await node.files.write(`/${absFilePath}`, new Uint8Array(encryptedFile), { create: true });
+  await node.files.write(`/${absFilePath}`, fstream.pipe(cipher), { create: true });
+  // 元ファイルの削除。
+  fs.unlinkSync(req.file.path);
   // クライアントが使うホームディレクトリのCIDを取得。
   const homeCid = (await node.files.stat(`/${homeDirPath}`)).cid.toString();
   // データベースの更新。
@@ -257,18 +259,17 @@ router.post('/:id/decrypt/file', async (req, res) => {
     type = { ext: 'text', mime: 'text/plain' };
   }
   
-  // Json 形式で応答。
-  res.json(
-    {
-      fileBuffer: fileBuffer,
-      type:
-      {
-        ext: type.ext,
-        mime: type.mime
-      }
-    }
-  );
+  const dlstream = new stream.PassThrough();
+  dlstream.end(Buffer.from(fileBuffer));
 
+  const header = {
+      "Content-Disposition": `attachment; filename=${cid}.${type.ext}`,
+      'Content-Length': fileBuffer.length,
+      'Content-Type': type.mime ? type.mime : 'text/plain' 
+  }
+
+  res.writeHead(200, header);
+  dlstream.pipe(res);
 });
 
 export default router;

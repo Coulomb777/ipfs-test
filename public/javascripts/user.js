@@ -80,16 +80,16 @@ $(window).on('load', async () => { // ページ読み込み終了後の処理。
     })
 
     // ファイルコンテンツをクリックしたときの処理。(hrefの内容に飛ぶ。別タブ。)
-    $(document).on('dblclick', '.list-group-item-action.file', (e) => {
+    $(document).on('dblclick', '.file', (e) => {
         window.open($(e.currentTarget).attr('href'));
     });
 
     // ディレクトリコンテンツをクリックしたときの処理。(hrefの内容に飛ぶ)
-    $(document).on('dblclick', '.list-group-item-action.dir', (e) => {
+    $(document).on('dblclick', '.dir', (e) => {
         window.location.href = $(e.currentTarget).attr('href');
     });
 
-    $('.sortable').sortable();
+    $('#content-list').tablesorter();
 });
 
 /////////////////////////////////////////////////////////////////////////
@@ -141,59 +141,63 @@ async function listFile(cid, name) {
         processData: false
     }).done((data) => {
         $(".files").append(
-            `<li class="list-group-item list-group-item-action d-flex justify-content-between align-items-center file" href="/user/${userID}/files/${cid}">`
-            + `<div class="content">`
-            + `<input class="selection" type="checkbox" style="display: inline-block; _display: inline">`
-            + `&emsp;`
-            + `<div class="content-icon" style="display: inline-block; _display: inline">`
-            + `<svg focusable="false" viewBox="0 0 32 32" height="16px" width="16px" fill="#5f6368">`
-            + `<g>`
-            + `<path d="M28.681 7.159c-0.694-0.947-1.662-2.053-2.724-3.116s-2.169-2.030-3.116-2.724c-1.612-1.182-2.393-1.319-2.841-1.319h-15.5c-1.378 0-2.5 1.121-2.5 2.5v27c0 1.378 1.122 2.5 2.5 2.5h23c1.378 0 2.5-1.122 2.5-2.5v-19.5c0-0.448-0.137-1.23-1.319-2.841zM24.543 5.457c0.959 0.959 1.712 1.825 2.268 2.543h-4.811v-4.811c0.718 0.556 1.584 1.309 2.543 2.268zM28 29.5c0 0.271-0.229 0.5-0.5 0.5h-23c-0.271 0-0.5-0.229-0.5-0.5v-27c0-0.271 0.229-0.5 0.5-0.5 0 0 15.499-0 15.5 0v7c0 0.552 0.448 1 1 1h7v19.5z"></path>`
-            + `</g>`
-            + `</svg>`
-            + `</div>`
-            + `&emsp;`
-            + `<div class="file-name" style="display: inline-block; _display: inline" id="${name}">`
-            + `${data.text}`
-            + `</div>`
-            + `</div>`
-            + `<span class="badge">`
-            + `<div class="btn-group dropend">`
-            + `<button type="button" class="btn btn-sm dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">`
-            + `<i class="bi bi-three-dots fa-xs"></i>`    
-            + `</button>`
-            + `<ul class="dropdown-menu">`
-            + `<li>`
-            + `<a class="dropdown-item" href="/user/${userID}/download/${cid}" target="_blank" rel="noopener noreferrer">ダウンロード</a>`
-            + `</li>`
-            + `<li>`
-            + `<label class="dropdown-item" id="share-file">`
-            + `共有`
-            + `<button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#file-share" data-cid="${cid}" hidden></button>`
-            + `</label>`
-            + `</li>`
-            + `</ul>`
-            + `</div>`
-            + `</span>`
-            + `</li>`
+              `<tr>`
+            + `   <td class="text-center">`
+            + `     <input class="selection" type="checkbox"/>`
+            + `   </td>`
+            + `   <td class="text-center" style="padding-bottom: 1%;">`
+            + `     <svg focusable="false" viewBox="0 0 32 32" height="16px" width="16px" fill="#5f6368">`
+            + `      <g>`
+            + `        <path d="M28.681 7.159c-0.694-0.947-1.662-2.053-2.724-3.116s-2.169-2.030-3.116-2.724c-1.612-1.182-2.393-1.319-2.841-1.319h-15.5c-1.378 0-2.5 1.121-2.5 2.5v27c0 1.378 1.122 2.5 2.5 2.5h23c1.378 0 2.5-1.122 2.5-2.5v-19.5c0-0.448-0.137-1.23-1.319-2.841zM24.543 5.457c0.959 0.959 1.712 1.825 2.268 2.543h-4.811v-4.811c0.718 0.556 1.584 1.309 2.543 2.268zM28 29.5c0 0.271-0.229 0.5-0.5 0.5h-23c-0.271 0-0.5-0.229-0.5-0.5v-27c0-0.271 0.229-0.5 0.5-0.5 0 0 15.499-0 15.5 0v7c0 0.552 0.448 1 1 1h7v19.5z"/>`
+            + `      </g>`
+            + `    </svg>`
+            + `  </td>`
+            + `  <td class="file content-name" href="/user/${userID}/files/${cid}" id="${name}">`
+            + `    ${data.text}`
+            + `  </td>`
+            + `  <td class="text-center file-menu">`
+            + `    <div class="btn-group dropend">`
+            + `      <button type="button" class="btn btn-sm dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">`
+            + `        <svg focusable="false" viewBox="0 0 16 16" height="16px" width="16px" fill="#5f6368">`
+            + `          <g>`
+            + `            <path d="M3 9.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"/>`
+            + `          </g>`
+            + `        </svg>`
+            + `      </button>`
+            + `      <ul class="dropdown-menu">`
+            + `        <li>`
+            + `          <a class="dropdown-item" href="/user/${userID}/download/${cid}" target="_blank" rel="noopener noreferrer">ダウンロード</a>`
+            + `        </li>`
+            + `        <li>`
+            + `          <label class="dropdown-item" id="share-file">`
+            + `            共有`
+            + `            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#file-share" data-cid="${cid}" hidden></button>`
+            + `          </label>`
+            + `        </li>`
+            + `      </ul>`
+            + `    </div>`
+            + `  </td>`
+            + `</tr>`
         );
     }).fail(() => {
         $(".files").append(
-            `<li class="list-group-item list-group-item-action file" href="/user/${userID}/files/${cid}">`
-            + `<input class="selection" type="checkbox" style="display: inline-block; _display: inline">`
-            + `&emsp;`
-            + `<div class="content-icon" style="display: inline-block; _display: inline">`
-            + `<svg focusable="false" viewBox="0 0 32 32" height="16px" width="16px" fill="#5f6368">`
-            + `<g>`
-            + `<path d="M28.681 7.159c-0.694-0.947-1.662-2.053-2.724-3.116s-2.169-2.030-3.116-2.724c-1.612-1.182-2.393-1.319-2.841-1.319h-15.5c-1.378 0-2.5 1.121-2.5 2.5v27c0 1.378 1.122 2.5 2.5 2.5h23c1.378 0 2.5-1.122 2.5-2.5v-19.5c0-0.448-0.137-1.23-1.319-2.841zM24.543 5.457c0.959 0.959 1.712 1.825 2.268 2.543h-4.811v-4.811c0.718 0.556 1.584 1.309 2.543 2.268zM28 29.5c0 0.271-0.229 0.5-0.5 0.5h-23c-0.271 0-0.5-0.229-0.5-0.5v-27c0-0.271 0.229-0.5 0.5-0.5 0 0 15.499-0 15.5 0v7c0 0.552 0.448 1 1 1h7v19.5z"></path>`
-            + `</g>`
-            + `</svg>`
-            + `</div>`
-            + `&emsp;`
-            + `<div class="file-name" style="display: inline-block; _display: inline; color: gray" id="${name}">`
-            + `${name}`
-            + `</div>`
-            + `</li>`
+              `<tr>`
+            + `   <td class="text-center">`
+            + `     <input class="selection" type="checkbox"/>`
+            + `   </td>`
+            + `   <td class="text-center" style="padding-bottom: 1%;">`
+            + `     <svg focusable="false" viewBox="0 0 32 32" height="16px" width="16px" fill="#5f6368">`
+            + `      <g>`
+            + `        <path d="M28.681 7.159c-0.694-0.947-1.662-2.053-2.724-3.116s-2.169-2.030-3.116-2.724c-1.612-1.182-2.393-1.319-2.841-1.319h-15.5c-1.378 0-2.5 1.121-2.5 2.5v27c0 1.378 1.122 2.5 2.5 2.5h23c1.378 0 2.5-1.122 2.5-2.5v-19.5c0-0.448-0.137-1.23-1.319-2.841zM24.543 5.457c0.959 0.959 1.712 1.825 2.268 2.543h-4.811v-4.811c0.718 0.556 1.584 1.309 2.543 2.268zM28 29.5c0 0.271-0.229 0.5-0.5 0.5h-23c-0.271 0-0.5-0.229-0.5-0.5v-27c0-0.271 0.229-0.5 0.5-0.5 0 0 15.499-0 15.5 0v7c0 0.552 0.448 1 1 1h7v19.5z"/>`
+            + `      </g>`
+            + `    </svg>`
+            + `  </td>`
+            + `  <td class="file-disabled content-name" id="${name}" style="colort: gray">`
+            + `    ${name}`
+            + `  </td>`
+            + `  <td class="text-center file-menu">`
+            + `  </td>`
+            + `</tr>`
         );
     });
 }
@@ -211,41 +215,43 @@ async function listDir(name) {
     }).done((data) => {
         const dirPath = currentPath == '' ? name : `${currentPath}/${name}`;
         $(".files").append(
-            `<li class="list-group-item list-group-item-action  d-flex justify-content-between align-items-center dir" href="/user/${userID}/directories/${dirPath}">`
-            + `<div class="content">`
-            + `<input class="selection" type="checkbox" style="display: inline-block; _display: inline">`
-            + `&emsp;`
-            + `<div class="content-icon" style="display: inline-block; _display: inline">`
-            + `<svg focusable="false" viewBox="0 0 32 32" height="16px" width="16px" fill="#5f6368">`
-            + `<g>`
-            + `<path d="M14 4l4 4h14v22h-32v-26z"></path>`
-            + `</g>`
-            + `</svg>`
-            + `</div>`
-            + `&emsp;`
-            + `<div class="file-name" style="display: inline-block; _display: inline" id="${name}">`
-            + `${data.text}`
-            + `</div>`
-            + `</div>`
-            + `</li>`
+              `<tr>`
+            + `   <td class="text-center">`
+            + `     <input class="selection" type="checkbox"/>`
+            + `   </td>`
+            + `   <td class="text-center" style="padding-bottom: 1%;">`
+            + `     <svg focusable="false" viewBox="0 0 32 32" height="16px" width="16px" fill="#5f6368">`
+            + `      <g>`
+            + `        <path d="M14 4l4 4h14v22h-32v-26z"/>`
+            + `      </g>`
+            + `    </svg>`
+            + `  </td>`
+            + `  <td class="dir content-name" href="/user/${userID}/directories/${dirPath}" id="${name}">`
+            + `    ${data.text}`
+            + `  </td>`
+            + `  <td class="text-center file-menu">`
+            + `  </td>`
+            + `</tr>`
         );
     }).fail(() => {
         $(".files").append(
-            `<li class="list-group-item list-group-item-action dir" href="/user/${userID}/directories/${dirPath}">`
-            + `<input class="selection" type="checkbox" style="display: inline-block; _display: inline">`
-            + `&emsp;`
-            + `<div class="content-icon" style="display: inline-block; _display: inline">`
-            + `<svg focusable="false" viewBox="0 0 32 32" height="16px" width="16px" fill="#5f6368">`
-            + `<g>`
-            + `<path d="M14 4l4 4h14v22h-32v-26z"></path>`
-            + `</g>`
-            + `</svg>`
-            + `</div>`
-            + `&emsp;`
-            + `<div class="file-name" style="display: inline-block; _display: inline; color: gray" id="${name}">`
-            + `${name}`
-            + `</div>`
-            + `</li>`
+              `<tr>`
+            + `   <td class="text-center">`
+            + `     <input class="selection" type="checkbox"/>`
+            + `   </td>`
+            + `   <td class="text-center" style="padding-bottom: 1%;">`
+            + `     <svg focusable="false" viewBox="0 0 32 32" height="16px" width="16px" fill="#5f6368">`
+            + `      <g>`
+            + `        <path d="M14 4l4 4h14v22h-32v-26z"/>`
+            + `      </g>`
+            + `    </svg>`
+            + `  </td>`
+            + `  <td class="dir-disabled content-name" id="${name}" style="color: gray">`
+            + `    ${name}`
+            + `  </td>`
+            + `  <td class="text-center file-menu">`
+            + `  </td>`
+            + `</tr>`
       );
     });
 }
@@ -254,7 +260,7 @@ async function rmFiles() {
     let targetFiles = new Array();
     for (let target of $('.selection:checked')) {
         // 削除するコンテンツの名前を追加。
-        targetFiles.push($(target).siblings('.file-name').attr('id'));
+        targetFiles.push($(target).parents().siblings('.content-name').attr('id'));
     }
 
     const json = {
@@ -296,9 +302,20 @@ async function loadDirectory() {
     }
     // からディレクトリの時に表示。
     if (!contentsIsExist) {
-        $('.files').html('<center style="color: gray">No contents</center>')
+        $('.files').html(
+              `<tr>`
+            + `  <td class="text-center">`
+            + `  </td>`
+            + `  <td>`
+            + `  </td>`
+            + `  <td>`
+            + `    <center style = "color: gray"> No contents</center>`
+            + `  </td>`
+            + `  <td>`
+            + `  </td>`
+            + `</tr>`
+        )
     }
-
 }
 
 async function getDecryptedDirsName() {
