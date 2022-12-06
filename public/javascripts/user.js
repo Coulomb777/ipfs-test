@@ -88,8 +88,6 @@ $(window).on('load', async () => { // ページ読み込み終了後の処理。
     $(document).on('dblclick', '.dir', (e) => {
         window.location.href = $(e.currentTarget).attr('href');
     });
-
-    $('#content-list').tablesorter();
 });
 
 /////////////////////////////////////////////////////////////////////////
@@ -140,7 +138,7 @@ async function listFile(cid, name) {
         contentType: false,
         processData: false
     }).done((data) => {
-        $(".files").append(
+        table.row.add($(
               `<tr>`
             + `   <td class="text-center">`
             + `     <input class="selection" type="checkbox"/>`
@@ -178,9 +176,9 @@ async function listFile(cid, name) {
             + `    </div>`
             + `  </td>`
             + `</tr>`
-        );
+        )).draw();
     }).fail(() => {
-        $(".files").append(
+        table.row.add($(
               `<tr>`
             + `   <td class="text-center">`
             + `     <input class="selection" type="checkbox"/>`
@@ -198,7 +196,7 @@ async function listFile(cid, name) {
             + `  <td class="text-center file-menu">`
             + `  </td>`
             + `</tr>`
-        );
+        )).draw();
     });
 }
 
@@ -214,7 +212,7 @@ async function listDir(name) {
         processData: false
     }).done((data) => {
         const dirPath = currentPath == '' ? name : `${currentPath}/${name}`;
-        $(".files").append(
+        table.row.add($(
               `<tr>`
             + `   <td class="text-center">`
             + `     <input class="selection" type="checkbox"/>`
@@ -232,10 +230,10 @@ async function listDir(name) {
             + `  <td class="text-center file-menu">`
             + `  </td>`
             + `</tr>`
-        );
+        )).draw();
     }).fail(() => {
-        $(".files").append(
-              `<tr>`
+        table.row.add($(
+            `<tr>`
             + `   <td class="text-center">`
             + `     <input class="selection" type="checkbox"/>`
             + `   </td>`
@@ -252,7 +250,7 @@ async function listDir(name) {
             + `  <td class="text-center file-menu">`
             + `  </td>`
             + `</tr>`
-      );
+        )).draw();
     });
 }
 
@@ -290,7 +288,7 @@ async function loadDirectory() {
         } else if (result.content.type == "dir") {
             listDir(result.content.name);
         }
-    } 
+    }
     // パス反映。
     if (currentPath != '') {
         const decryptedDirs = await getDecryptedDirsName();
@@ -299,22 +297,6 @@ async function loadDirectory() {
             $('#path').prepend(`/<a href="/user/${userID}/directories/${dirHref}" class="path">${dir}</a>`);
             dirHref = dirHref.substring(0, dirHref.lastIndexOf('/'));
         }  
-    }
-    // からディレクトリの時に表示。
-    if (!contentsIsExist) {
-        $('.files').html(
-              `<tr>`
-            + `  <td class="text-center">`
-            + `  </td>`
-            + `  <td>`
-            + `  </td>`
-            + `  <td>`
-            + `    <center style = "color: gray"> No contents</center>`
-            + `  </td>`
-            + `  <td>`
-            + `  </td>`
-            + `</tr>`
-        )
     }
 }
 
