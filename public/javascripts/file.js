@@ -1,38 +1,35 @@
 
 $(async () => {
-    let fileUrl;
-
     let json = {
         "password": localStorage.getItem(userID),
         "cid": cid,
     }
 
-    await fetch(`/user/${userID}/decrypt/file`, {
+    // ファイルの要求・表示。
+    const res = await fetch(`/user/${userID}/decrypt/file`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(json)
-    }).then(async (res) => {
-        console.log(res)
+    });
+    if (res.ok) {
         const blob = await res.blob();
-        console.log(blob)
-        const fileUrl = window.URL.createObjectURL(blob);
-
-        await $('.container').append(
-            `<iframe src="${fileUrl}"}"></iframe>`
+        await $(".container").append(
+            `<iframe src="${window.URL.createObjectURL(blob)}"}"></iframe>`
         );
-    })
+    } else {
+        throw new Error(res.statusText);
+    }
 
-    $('.container iframe').on('load', async () => {
-        await $('.container iframe').contents().find('html').css('height', '');
-        await $('.container iframe').contents().find('html').css('display', 'block');
+    // iframe の見た目の調整。
+    $(".container iframe").on("load", async () => {
+        await $(".container iframe").contents().find("html").css("height", "");
+        await $(".container iframe").contents().find("html").css("display", "block");
 
-        const iframeImg = await $('.container iframe').contents().find('img');
+        const iframeImg = await $(".container iframe").contents().find("img");
         if (iframeImg.length > 0) {
-            console.log(iframeImg)
-            await iframeImg.css('display', 'block');
-            await iframeImg.css('width', '100%');
+            await iframeImg.css("display", "block");
+            await iframeImg.css("width", "100%");
         }
-        fileUrl.revokeObjectURL();
     })
 
 });

@@ -1,4 +1,4 @@
-import crypto from 'crypto';
+import crypto from "crypto";
 
 /**
  * ファイル暗号化
@@ -38,7 +38,7 @@ export function decryptFile(algorithm, buffer, key, iv) {
  */
 export function encryptString(algorithm, str, key, iv) {
     const cipher = crypto.createCipheriv(algorithm, key, iv);
-    const encrypted = cipher.update(str, 'utf8', 'hex') + cipher.final('hex');
+    const encrypted = cipher.update(str, "utf8", "hex") + cipher.final("hex");
     return encrypted;
 };
 
@@ -52,6 +52,6 @@ export function encryptString(algorithm, str, key, iv) {
  */
 export function decryptString(algorithm, str, key, iv) {
     const decipher = crypto.createDecipheriv(algorithm, key, iv);
-    const decrypted = decipher.update(str, 'hex', 'utf8') + decipher.final('utf8');
+    const decrypted = decipher.update(str, "hex", "utf8") + decipher.final("utf8");
     return decrypted;
 };

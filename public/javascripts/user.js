@@ -1,92 +1,113 @@
 let currentPath;
 $(async () => { // ページ読み込み中の処理。
     const pageUrl = window.location.href;
-    currentPath = pageUrl.substring(pageUrl.indexOf('directories/')).replace("directories/", "");
+    currentPath = pageUrl.substring(pageUrl.indexOf("directories/")).replace("directories/", "");
     await loadDirectory();
 
     // ロード画面を隠す・ページ内容の表示。
-    await $('.loader').fadeOut();
-    await $('.contents').delay(400).fadeIn();
+    await $(".loader").fadeOut();
+    await $(".contents").delay(400).fadeIn();
 });
 
-$(window).on('load', async () => { // ページ読み込み終了後の処理。
+$(window).on("load", async () => { // ページ読み込み終了後の処理。
     
     // ファイルの追加。
-    $(document).on('change', '#add-file', async () => {
-        const files = $('#add-file')[0].files;
+    $(document).on("change", "#add-file", async (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+
+        const files = $("#add-file")[0].files;
         if (files.length <= 0) {
             return;
         }
         const file = files[0];
         await addFile(file);
         window.location.reload();
-        return false;
     });
     
     // ディレクトリの追加。
-    $(document).on('click', '#make-dir', async () => {
+    $(document).on("click", "#make-dir", async (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+
         await makeDirectory();
         window.location.reload();
-        return false;
     });
 
     // 削除ボタンを押したときの処理。
-    $(document).on('click', '#remove', () => {
-        rmFiles();
-        return false;
+    $(document).on("click", "#remove", async (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+
+        await rmFiles();
+        window.location.reload();
     });
 
     // ファイル共有モーダルを開いた時の処理。
-    $('#file-share').on('show.bs.modal', (e) => {
-        const shareBtn = $(e.relatedTarget);
-        const cid = shareBtn.data('cid');
+    $("#file-share").on("show.bs.modal", (e) => {
+        e.stopPropagation();
+        e.preventDefault();
 
-        $('#modal-cid').text(cid);
-    })
+        const shareBtn = $(e.relatedTarget);
+        const cid = shareBtn.data("cid");
+
+        $("#modal-cid").text(cid);
+    });
 
     // ファイル共有ボタン。
-    $(document).on('click', '#share', () => {
+    $(document).on("click", "#share", (e) => {
+        e.stopPropagation();
+        e.preventDefault();
         shareFile();
-        return false;
     });
 
     // コンテンツのチェックボックスについての処理。
-    $(document).on('change', '.selection', () => {
-        console.log('check')
+    $(document).on("change", ".selection", (e) => {
+        e.stopPropagation();
+        e.preventDefault();
         // ひとつでも選択されていたら削除ボタンを出す。
         // それ以外では隠す。
-        if ($('.selection:checked').length > 0) {
-            $('#remove-btn').show();
+        if ($(".selection:checked").length > 0) {
+            $("#remove-btn").show();
         }
         else {
-            $('#remove-btn').hide();
+            $("#remove-btn").hide();
         }
         
     });
 
     //ドラッグ&ドロップ時の操作
-    $(document).on('drop', '.drop-area' , async (e) => {
+    $(document).on("drop", ".drop-area", async (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+
         const files = e.originalEvent.dataTransfer.files;
         for (let file of files) {
             await addFile(file);
         }
         window.location.reload();
-    })
-
-    //ドロップエリア以外のドロップ禁止
-    $(document).on('dragenter dragover drop', (e) => {
-        e.stopPropagation()
-        e.preventDefault()
-    })
-
-    // ファイルコンテンツをクリックしたときの処理。(hrefの内容に飛ぶ。別タブ。)
-    $(document).on('dblclick', '.file', (e) => {
-        window.open($(e.currentTarget).attr('href'));
     });
 
-    // ディレクトリコンテンツをクリックしたときの処理。(hrefの内容に飛ぶ)
-    $(document).on('dblclick', '.dir', (e) => {
-        window.location.href = $(e.currentTarget).attr('href');
+    //ドロップエリア以外のドロップ禁止
+    $(document).on("dragenter dragover drop", (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+    });
+
+    // ファイルコンテンツをダブルクリックしたときの処理。(hrefの内容に飛ぶ。別タブ。)
+    $(document).on("dblclick", ".file", (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+
+        window.open($(e.currentTarget).attr("href"));
+    });
+
+    // ディレクトリコンテンツをダブルクリックしたときの処理。(hrefの内容に飛ぶ)
+    $(document).on("dblclick", ".dir", (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+
+        window.location.href = $(e.currentTarget).attr("href");
     });
 });
 
@@ -94,52 +115,47 @@ $(window).on('load', async () => { // ページ読み込み終了後の処理。
 async function addFile(file) {
     // FormDataの作成。
     const formData = new FormData();
-    formData.append('file', file);
-    formData.append('file-name', file.name)
-    formData.append('password', localStorage.getItem(userID));
-    formData.append('path', currentPath);
+    formData.append("file", file);
+    formData.append("file-name", file.name)
+    formData.append("password", localStorage.getItem(userID));
+    formData.append("path", currentPath);
     // /user/{ユーザID}/upload にFormData をPOST。
-    await $.ajax({
-        url: `/user/${userID}/upload`,
-        type: 'post',
-        data: formData,
-        contentType: false,
-        processData: false
-    }).done(() => {
-        return;
+    const res = await fetch(`/user/${userID}/upload`, {
+        method: "POST",
+        body: formData
     });
+    if (!res.ok) {
+        throw new Error(res.statusText);
+    }
 }
 
 async function makeDirectory() {
     const params = new URLSearchParams();
-    params.append('path', currentPath);
-    params.append('password', localStorage.getItem(userID));
-    params.append('dir', $('#dir-name').val());
+    params.append("path", currentPath);
+    params.append("password", localStorage.getItem(userID));
+    params.append("dir", $("#dir-name").val());
     // /user/{ユーザID}/mkdir に params をPOST。
-    await $.ajax({
-        url: `/user/${userID}/mkdir`,
-        type: 'post',
-        data: params,
-        contentType: false,
-        processData: false
-    }).done(() => {
-        return;
+    const res = await fetch(`/user/${userID}/mkdir`, {
+        method: "POST",
+        body: formData
     });
+    if (!res.ok) {
+        throw new Error(res.statusText);
+    }
 }
 
 async function listFile(cid, name) {
     const params = new URLSearchParams();
-    params.append('password', localStorage.getItem(userID));
-    params.append('text', name);
-    await $.ajax({
-        url: `/user/${userID}/decrypt/text`,
-        type: 'post',
-        data: params,
-        contentType: false,
-        processData: false
-    }).done((data) => {
+    params.append("password", localStorage.getItem(userID));
+    params.append("text", name);
+    const res = await fetch(`/user/${userID}/decrypt/text`, {
+        method: "POST",
+        body: params
+    });
+    if (res.ok) {
+        const data = await res.json();
         table.row.add($(
-              `<tr>`
+                `<tr>`
             + `   <td class="text-center">`
             + `     <input class="selection" type="checkbox"/>`
             + `   </td>`
@@ -177,41 +193,40 @@ async function listFile(cid, name) {
             + `  </td>`
             + `</tr>`
         )).draw();
-    }).fail(() => {
+    } else {
         table.row.add($(
-              `<tr>`
-            + `   <td class="text-center">`
-            + `     <input class="selection" type="checkbox"/>`
-            + `   </td>`
-            + `   <td class="text-center" style="padding-bottom: 1%;">`
-            + `     <svg focusable="false" viewBox="0 0 32 32" height="16px" width="16px" fill="#5f6368">`
-            + `      <g>`
-            + `        <path d="M28.681 7.159c-0.694-0.947-1.662-2.053-2.724-3.116s-2.169-2.030-3.116-2.724c-1.612-1.182-2.393-1.319-2.841-1.319h-15.5c-1.378 0-2.5 1.121-2.5 2.5v27c0 1.378 1.122 2.5 2.5 2.5h23c1.378 0 2.5-1.122 2.5-2.5v-19.5c0-0.448-0.137-1.23-1.319-2.841zM24.543 5.457c0.959 0.959 1.712 1.825 2.268 2.543h-4.811v-4.811c0.718 0.556 1.584 1.309 2.543 2.268zM28 29.5c0 0.271-0.229 0.5-0.5 0.5h-23c-0.271 0-0.5-0.229-0.5-0.5v-27c0-0.271 0.229-0.5 0.5-0.5 0 0 15.499-0 15.5 0v7c0 0.552 0.448 1 1 1h7v19.5z"/>`
-            + `      </g>`
-            + `    </svg>`
-            + `  </td>`
-            + `  <td class="file-disabled content-name" id="${name}" style="colort: gray">`
-            + `    ${name}`
-            + `  </td>`
-            + `  <td class="text-center file-menu">`
-            + `  </td>`
-            + `</tr>`
-        )).draw();
-    });
+            `<tr>`
+          + `   <td class="text-center">`
+          + `     <input class="selection" type="checkbox"/>`
+          + `   </td>`
+          + `   <td class="text-center" style="padding-bottom: 1%;">`
+          + `     <svg focusable="false" viewBox="0 0 32 32" height="16px" width="16px" fill="#5f6368">`
+          + `      <g>`
+          + `        <path d="M28.681 7.159c-0.694-0.947-1.662-2.053-2.724-3.116s-2.169-2.030-3.116-2.724c-1.612-1.182-2.393-1.319-2.841-1.319h-15.5c-1.378 0-2.5 1.121-2.5 2.5v27c0 1.378 1.122 2.5 2.5 2.5h23c1.378 0 2.5-1.122 2.5-2.5v-19.5c0-0.448-0.137-1.23-1.319-2.841zM24.543 5.457c0.959 0.959 1.712 1.825 2.268 2.543h-4.811v-4.811c0.718 0.556 1.584 1.309 2.543 2.268zM28 29.5c0 0.271-0.229 0.5-0.5 0.5h-23c-0.271 0-0.5-0.229-0.5-0.5v-27c0-0.271 0.229-0.5 0.5-0.5 0 0 15.499-0 15.5 0v7c0 0.552 0.448 1 1 1h7v19.5z"/>`
+          + `      </g>`
+          + `    </svg>`
+          + `  </td>`
+          + `  <td class="file-disabled content-name" id="${name}" style="colort: gray">`
+          + `    ${name}`
+          + `  </td>`
+          + `  <td class="text-center file-menu">`
+          + `  </td>`
+          + `</tr>`
+      )).draw();
+    }
 }
 
 async function listDir(name) {
     const params = new URLSearchParams();
-    params.append('password', localStorage.getItem(userID));
-    params.append('text', name);
-    await $.ajax({
-        url: `/user/${userID}/decrypt/text`,
-        type: 'post',
-        data: params,
-        contentType: false,
-        processData: false
-    }).done((data) => {
-        const dirPath = currentPath == '' ? name : `${currentPath}/${name}`;
+    params.append("password", localStorage.getItem(userID));
+    params.append("text", name);
+    const res = await fetch(`/user/${userID}/decrypt/text`, {
+        method: "POST",
+        body: params
+    });
+    if (res.ok) {
+        const data = await res.json();
+        const dirPath = currentPath === "" ? name : `${currentPath}/${name}`;
         table.row.add($(
               `<tr>`
             + `   <td class="text-center">`
@@ -230,8 +245,8 @@ async function listDir(name) {
             + `  <td class="text-center file-menu">`
             + `  </td>`
             + `</tr>`
-        )).draw();
-    }).fail(() => {
+        )).draw();  
+    } else {
         table.row.add($(
             `<tr>`
             + `   <td class="text-center">`
@@ -251,14 +266,14 @@ async function listDir(name) {
             + `  </td>`
             + `</tr>`
         )).draw();
-    });
+    }
 }
 
 async function rmFiles() {
     let targetFiles = new Array();
-    for (let target of $('.selection:checked')) {
+    for (let target of $(".selection:checked")) {
         // 削除するコンテンツの名前を追加。
-        targetFiles.push($(target).parents().siblings('.content-name').attr('id'));
+        targetFiles.push($(target).parents().siblings(".content-name").attr("id"));
     }
 
     const json = {
@@ -267,15 +282,14 @@ async function rmFiles() {
         "target_files": targetFiles
     }
     
-    await $.ajax({
-        url: `/user/${userID}/rmFiles`,
-        type: 'post',
-        data: JSON.stringify(json),
-        contentType: 'application/json',
-        processData: false
-    }).done(() => {
-        window.location.reload();
+    const res = await fetch(`/user/${userID}/rmFiles`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(json)
     });
+    if (!res.ok) {
+        throw new Error(res.statusText);
+    }
 }
 
 async function loadDirectory() {
@@ -283,44 +297,45 @@ async function loadDirectory() {
     //　ディレクトリ内容の反映。
     for (let result of data.contents) {
         contentsIsExist = true;
-        if (result.content.type == "file") {
+        if (result.content.type === "file") {
             listFile(result.cid, result.content.name);
-        } else if (result.content.type == "dir") {
+        } else if (result.content.type === "dir") {
             listDir(result.content.name);
         }
     }
     // パス反映。
-    if (currentPath != '') {
+    if (currentPath !== "") {
         const decryptedDirs = await getDecryptedDirsName();
         let dirHref = currentPath;
         for (let dir of decryptedDirs.reverse()) {
-            $('#path').prepend(`/<a href="/user/${userID}/directories/${dirHref}" class="path">${dir}</a>`);
-            dirHref = dirHref.substring(0, dirHref.lastIndexOf('/'));
+            $("#path").prepend(`/<a href="/user/${userID}/directories/${dirHref}" class="path">${dir}</a>`);
+            dirHref = dirHref.substring(0, dirHref.lastIndexOf("/"));
         }  
     }
 }
 
 async function getDecryptedDirsName() {
-    const encryptedDirs = currentPath.split('/');
+    const encryptedDirs = currentPath.split("/");
     let dirs = new Array();
     for (let dir of encryptedDirs) {
         const params = new URLSearchParams();
-        params.append('password', localStorage.getItem(userID));
-        params.append('text', dir);
-        await $.ajax({
-            url: `/user/${userID}/decrypt/text`,
-            type: 'post',
-            data: params,
-            contentType: false,
-            processData: false
-        }).done((data) => {
+        params.append("password", localStorage.getItem(userID));
+        params.append("text", dir);
+        const res = await fetch(`/user/${userID}/decrypt/text`, {
+            method: "POST",
+            body: params
+        })
+        if (res.ok) {
+            const data = await res.json();
             dirs.push(data.text);
-        });
+        } else {
+            throw new Error(res.statusText);
+        }
     }
     return dirs;
 }
 
 async function shareFile() {
-    const cid = $('#modal-cid').text();
+    const cid = $("#modal-cid").text();
 
 }

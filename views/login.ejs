@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="ja">
-
 <head>
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
@@ -10,11 +9,11 @@
     <!-- Bootstrap css-->
     <link rel="stylesheet" type="text/css" href="/public/stylesheets/bootstrap-5.0.2/bootstrap.min.css">
     <script src="/public/javascripts/bootstrap-5.0.2/bootstrap.bundle.min.js"></script>
+    <!-- -->
+    <link rel="stylesheet" type="text/css" href="/public/stylesheets/style.css">
     <title>登録画面</title>
 </head>
-
 <body>
-
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
         <div class="container-fluid">
             <a class="navbar-brand" href="#">IPFS</a>
@@ -38,7 +37,7 @@
         <form method="post" autocomplete="off" action="/login">
             <div class="mb-3">
                 <label for="user-id" class="form-label">ユーザーID</label>
-                <% if( id !==undefined && id !=='' ) {%>
+                <% if( id !== undefined && id !== "" ) {%>
                 <input required type="text" class="form-control" id="user-id" name="user-id" placeholder="ユーザーIDを入力" value="<%= id %>" />
                 <%} else {%>
                 <input required type="text" class="form-control" id="user-id" name="user-id" placeholder="ユーザーIDを入力" />
@@ -62,8 +61,6 @@
             <button type="submit" class="btn btn-primary" id="btn" disabled>ログイン</button>
         </form>
     </div>
-
 </body>
-<script type="text/javascript" src="/public/javascripts/login.js">
-</script>
+<script type="text/javascript" src="/public/javascripts/login.js"></script>
 </html>

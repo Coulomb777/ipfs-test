@@ -1,30 +1,30 @@
-import { Router } from 'express';
-import last from 'it-last';
-import crypto from 'crypto';
+import { Router } from "express";
+import last from "it-last";
+import crypto from "crypto";
 
-import * as doCrypto from '../src/lib/do-crypto/index.mjs';
-import * as stringValidation from '../src/lib/string-validation/index.mjs';
-import * as operateSqlite3 from '../src/lib/operate-sqlite3/index.mjs';
-import { node } from '../app.js';
+import * as doCrypto from "../src/lib/do-crypto/index.mjs";
+import * as stringValidation from "../src/lib/string-validation/index.mjs";
+import * as operateSqlite3 from "../src/lib/operate-sqlite3/index.mjs";
+import { node } from "../app.js";
 
 const router = Router();
-const cryptoAlgorithm = 'aes-256-cbc';
+const cryptoAlgorithm = "aes-256-cbc";
 
 // /login への GET処理。
-router.get('/', (req, res) => {
+router.get("/", (req, res) => {
     if (req.session.user) { // セッションが存在。
         // /user/{ユーザid} にリダイレクト。
         return res.redirect(`/user/${req.session.user}`);
     }
     // ログイン画面。
-    res.render('login', { id: '', invalidInput: false });
+    res.render("login", { id: "", invalidInput: false });
 });
 
 // /login への POST処理
-router.post('/', async (req, res) => {
+router.post("/", async (req, res) => {
     const formData = [
-        req.body['user-id'],
-        req.body['password']
+        req.body["user-id"],
+        req.body["password"]
     ];
     // formのidとpasswordの形式確認。
     let isCorrect = false;
@@ -33,21 +33,28 @@ router.post('/', async (req, res) => {
     )) isCorrect = flag;
 
     if (!isCorrect) { // 不正な形式。
-        return res.render('login', { id: '', invalidInput: true });
+        return res.render("login", { id: "", invalidInput: true });
     }
 
     const userID = formData[0];
     const password = formData[1];
 
+    const db = operateSqlite3.open();
+    // トランザクション開始。
+    db.prepare("BEGIN").run();
     // ユーザの存在確認。
-    const countUserID = operateSqlite3.getCount('user', `WHERE id='${userID}'`);
-    if (countUserID == 0) { // ユーザがいない。
+    let row = db.prepare("SELECT COUNT(*) FROM users WHERE id = ?").get(userID);
+    const countUserID = parseInt(row["COUNT(*)"], 10);
+    if (countUserID === 0) { // ユーザがいない。
         // 登録画面。
-        return res.redirect('/register');
+        return res.redirect("/register");
     }
-
     // データベースからid に対する iv, salt を取得。
-    const dbData = operateSqlite3.getData('user', `WHERE id='${userID}'`, 'salt', 'iv');
+    const dbData = db.prepare("SELECT salt, iv FROM users WHERE id = ?").get(userID);;
+    // トランザクションの終了。
+    db.prepare("COMMIT").run();
+    db.close();
+
     let encryptedHomeDir;
 
     try { // idからホームディレクトリ情報を取得。
@@ -57,8 +64,8 @@ router.post('/', async (req, res) => {
     }
 
     try { // 復号化による認証。
-        const salt = Buffer.from(dbData['salt'], 'hex');
-        const iv = Buffer.from(dbData['iv'], 'hex');
+        const salt = Buffer.from(dbData["salt"], "hex");
+        const iv = Buffer.from(dbData["iv"], "hex");
         const key = crypto.scryptSync(password, salt, 32);
         // 復号化。
         doCrypto.decryptString(cryptoAlgorithm, encryptedHomeDir, key, iv);
@@ -68,8 +75,8 @@ router.post('/', async (req, res) => {
         res.redirect(`/user/${userID}`);
     } catch (err) { // パスワードが違う。
         // ログイン画面に戻る。
-        console.log('invalid password');
-        res.render('login', { id: userID, invalidInput: true });
+        console.log("invalid password");
+        res.render("login", { id: userID, invalidInput: true });
     }
 });
 

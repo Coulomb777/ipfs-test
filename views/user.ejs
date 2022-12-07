@@ -16,38 +16,7 @@
     <script src="/public/javascripts/bootstrap-5.0.2/bootstrap.bundle.min.js"></script>
     <scrypt src="/public/javascripts/dataTables.bootstrap5-1.13.1.min.js"></scrypt>
     <link rel="stylesheet" type="text/css" href="/public/stylesheets/dataTables.bootstrap5.min.css">
-    <style>
-        .container {
-            user-select: none;
-        }
-        .file {
-            cursor: pointer;
-            cursor: hand;
-        }
-        .dir {
-            cursor: pointer;
-            cursor: hand;
-        }
-        .file-menu .dropdown-toggle::after {
-            display: none;
-        }
-        .table-radius {
-            border: 1px solid;
-            border-radius: 5px;
-            border-spacing: 0;
-            border-collapse: separate;
-            padding-right: 0;
-            padding-left: 0;
-        }
-        .table-radius tr:last-child td {
-            border-bottom: none;
-        }
-        table.dataTable thead .sorting:after,
-        table.dataTable thead .sorting_asc:before,
-        table.dataTable thead .sorting_desc:before {
-            left: 70px;
-        }
-    </style>
+    <link rel="stylesheet" type="text/css" href="/public/stylesheets/style.css">
     <title>IPFS</title>
 </head>
 <body>
@@ -140,7 +109,6 @@
             </div>
         </div>
     </div>
-  
     <!-- ディレクトリ作成 Modal -->
     <div class="modal fade" id="input-dir-name" tabindex="-1" aria-labelledby="input-dir-name" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
@@ -164,7 +132,6 @@
             </div>
         </div>
     </div>
-    
     <!-- ファイル削除 Modal -->
     <div class="modal fade" id="remove-confirm" tabindex="-1" aria-labelledby="remove-confirm" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
@@ -187,7 +154,6 @@
             </div>
         </div>
     </div>
-
     <!-- ファイル共有 Modal -->
     <div class="modal fade" id="file-share" tabindex="-1" aria-labelledby="file-share" aria-hidden="true" data-bs-backdrop="static">
         <div class="modal-dialog modal-dialog-centered">
@@ -212,7 +178,6 @@
             </div>
         </div>
     </div>
-
 </body>
 <script>
     const userID = "<%= id %>";
@@ -295,7 +260,7 @@
             "value": "値"
         }
     }
-    const table = $('#content-list').DataTable({
+    const table = $("#content-list").DataTable({
         info: false,
         paging: false,
         order: [[2, "asc"]],
