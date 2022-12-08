@@ -12,6 +12,7 @@ import * as ipfsDaemon from "ipfs-daemon"
 
 import indexRouter from "./routes/index.js";
 import loginRouter from "./routes/login.js";
+import logoutRouter from "./routes/logout.js";
 import registerRouter from "./routes/register.js";
 import userRouter from "./routes/user.js";
 
@@ -56,7 +57,7 @@ app.use("/public", express.static(path.join(__dirname, "public")));
 app.use(session({
   secret: "QdxfZirx8NknNeCU-W3xg9ad4tsc8EQsR-T98KeLmxJLTeBdxnQAwk4QJKtDxNxg",
   cookie: { maxAge: 60 * 60 * 1000 },
-  resave: false,
+  resave: true,
   saveUninitialized: false,
   store: new sessionStore({
     client: new sqlite3("sessions.db")
@@ -65,6 +66,7 @@ app.use(session({
 
 app.use("/", indexRouter);
 app.use("/login/", loginRouter);
+app.use("/logout/", logoutRouter);
 app.use("/register/", registerRouter);
 app.use("/user/", userRouter);
 

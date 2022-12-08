@@ -14,7 +14,6 @@ import * as operateSqlite3 from "../src/lib/operate-sqlite3/index.mjs";
 import * as doCrypto from "../src/lib/do-crypto/index.mjs";
 import { node } from "../app.js";
 
-
 const router = Router();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -40,7 +39,7 @@ router.use("/:id/*", (req, res, next) => {
 // /user への GET 処理。
 router.get("/", (req, res) => {
   // /user/{id} にリダイレクト。
-  res.redirect(`/user/${req.session.user}/directories`);
+  res.redirect(`/user/${req.session.user}/directories/`);
 });
 
 // /user/{ユーザID} への GET処理。
@@ -230,7 +229,6 @@ router.post("/:id/decrypt/text", (req, res) => {
   const userID = req.params.id;
   const password = req.body["password"];
   const text = req.body["text"];
-  console.log(text)
 
   const db = operateSqlite3.open();
   // データベースから salt と iv を取得。

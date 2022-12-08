@@ -19,8 +19,10 @@ $(window).on("load", async () => { // ページ読み込み終了後の処理。
     if (files.length <= 0) {
       return;
     }
-    const file = files[0];
-    await addFile(file);
+    
+    for (const file of files) {
+      await addFile(file);
+    }
     window.location.reload();
   });
 
@@ -36,6 +38,7 @@ $(window).on("load", async () => { // ページ読み込み終了後の処理。
     if (e.key === "Enter") {
       e.stopPropagation();
       e.preventDefault();
+
       await makeDirectory();
       window.location.reload();
     }
@@ -105,6 +108,16 @@ $(window).on("load", async () => { // ページ読み込み終了後の処理。
     e.preventDefault();
 
     $(".drop-area").removeClass("emphasized");
+
+    const items = e.originalEvent.dataTransfer.items;
+    for (const item of items) {
+      const entry = item.webkitGetAsEntry();
+      if (entry.isDirectory) {
+        $("#alert-dir").modal("show");
+        return;
+      }
+    }
+
     const files = e.originalEvent.dataTransfer.files;
     for (let file of files) {
       await addFile(file);
@@ -207,7 +220,7 @@ async function listFile(cid, name) {
       + `          <a class="dropdown-item" href="/user/${userID}/download/${cid}" target="_blank" rel="noopener noreferrer" draggable="false">ダウンロード</a>`
       + `        </li>`
       + `        <li>`
-      + `          <label class="dropdown-item" id="share-file">`
+      + `          <label class="dropdown-item" id="share-modal">`
       + `            共有`
       + `            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#file-share" data-cid="${cid}" hidden></button>`
       + `          </label>`

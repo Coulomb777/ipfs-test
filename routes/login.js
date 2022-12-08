@@ -12,10 +12,6 @@ const cryptoAlgorithm = "aes-256-cbc";
 
 // /login への GET処理。
 router.get("/", (req, res) => {
-  if (req.session.user) { // セッションが存在。
-    // /user/{ユーザid} にリダイレクト。
-    return res.redirect(`/user/${req.session.user}`);
-  }
   // ログイン画面。
   res.render("login", { id: "", invalidInput: false });
 });

@@ -4,7 +4,7 @@ const router = Router();
 /* GET home page. */
 router.get("/", (req, res) => {
   //res.render("index", { title: "Express" });
-  res.redirect("/login");
+  res.redirect("/user");
 });
 
 export default router;

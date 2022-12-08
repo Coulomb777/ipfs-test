@@ -2,17 +2,20 @@ body {
   user-select: none;
 }
 
-.file {
+.id {
+  padding-left: 30px;
+  padding-right: 30px;
+  height: 60px;
+}
+
+.file, .dir {
   cursor: pointer;
   cursor: hand;
 }
 
-.dir {
-  cursor: pointer;
-  cursor: hand;
-}
 
-.file-menu .dropdown-toggle::after {
+.file-menu .dropdown-toggle::after,
+.id .dropdown-toggle::after {
   display: none;
 }
 

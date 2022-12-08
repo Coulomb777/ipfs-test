@@ -24,7 +24,7 @@
 <body>
   <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
     <div class="container-fluid">
-      <a class="navbar-brand" draggable="false">IPFS</a>
+      <a class="navbar-brand" href="/" draggable="false">IPFS</a>
       <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent"
         aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
         <span class="navbar-toggler-icon"></span>
@@ -42,9 +42,31 @@
     </div>
   </nav>
   <div class="container my-5 p-5 border rounded">
-    <h2 class="pb-4" id="id" style="user-select: none">
-      <%= id %>
-    </h2>
+    <div class="id">
+      <small>ユーザーID</small>
+      <h3 class="pb-4" style="position: relative; display: flex;">
+        <div>
+          <%= id %>
+        </div>
+        <div class="btn-group dropend" style="margin-left: 5px;">
+          <button type="button" class="btn btn-sm dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+            <svg focusable="false" viewBox="0 0 16 16" height="16px" width="16px" fill="#5f6368">          
+              <g>
+                <path d="M3 9.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3z"></path>
+              </g>
+            </svg>      
+          </button>      
+           <ul class="dropdown-menu">        
+             <li>          
+              <label class="dropdown-item" id="share-modal">
+                ログアウト
+                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#logout-modal" hidden></button>          
+              </label>        
+            </li>      
+          </ul>    
+        </div>
+      </h3>
+    </div>
     <div class="loader" style="text-align: center;">
       <div class="d-flex justify-content-center">
         <div class="spinner-border" role="status"></div>
@@ -69,8 +91,7 @@
           <ul class="nav justify-content-end">
             <li class="nav-item">
               <!-- Button trigger modal -->
-              <button type="button" id="remove-btn" class="btn btn-danger btn-sm" data-bs-toggle="modal"
-                data-bs-target="#remove-confirm" style="display: none;">
+              <button type="button" id="remove-btn" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#remove-modal" style="display: none;">
                 削除
               </button>
             </li>
@@ -80,15 +101,14 @@
                 <li>
                   <label class="dropdown-item">
                     ファイルを追加
-                    <input type="file" class="dropdown-item" id="add-file" name="add-file" hidden />
+                    <input type="file" class="dropdown-item" id="add-file" name="add-file" hidden multiple/>
                   </label>
                 </li>
                 <li>
                   <label class="dropdown-item" id="add-dir">
                     ディレクトリを追加
                     <!-- Button trigger modal -->
-                    <button type="button" class="btn btn-primary" data-bs-toggle="modal"
-                      data-bs-target="#input-dir-name" hidden></button>
+                    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#dir-modal" hidden></button>
                   </label>
                 </li>
               </ul>
@@ -98,7 +118,7 @@
         <hr>
         <div class="col-12">
           <table class="table table-sm table-hover table-radius drop-area" id="content-list">
-            <thead style="background-color: rgb(32, 32, 32); color: aliceblue;">
+            <thead class="bg-dark" style="color: white">
               <tr>
                 <th class="th-sm text-center" style="width: 5% !important"></th>
                 <th class="th-sm" style="width: 5% !important"></th>
@@ -114,8 +134,47 @@
       </div>
     </div>
   </div>
+  <!-- ログアウト Modal -->
+  <div class="modal fade" id="logout-modal" tabindex="-1" aria-labelledby="logout-confirm" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="logout-confirm">ログアウト</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="text-center">
+            ログアウトしますか？
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
+          <a type="button" class="btn btn-primary" href="/logout">ログアウト</a>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- ディレクトリアップロード未対応 Modal -->
+  <div class="modal fade" id="alert-dir" tabindex="-1" aria-labelledby="drop-dir" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="drop-dir">削除</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="text-center">
+            ディレクトリのアップロードには対応していません...。
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-primary" data-bs-dismiss="modal">OK</button>
+        </div>
+      </div>
+    </div>
+  </div>
   <!-- ディレクトリ作成 Modal -->
-  <div class="modal fade" id="input-dir-name" tabindex="-1" aria-labelledby="input-dir-name" aria-hidden="true">
+  <div class="modal fade" id="dir-modal" tabindex="-1" aria-labelledby="input-dir-name" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content">
         <div class="modal-header">
@@ -138,7 +197,7 @@
     </div>
   </div>
   <!-- ファイル削除 Modal -->
-  <div class="modal fade" id="remove-confirm" tabindex="-1" aria-labelledby="remove-confirm" aria-hidden="true">
+  <div class="modal fade" id="remove-modal" tabindex="-1" aria-labelledby="remove-confirm" aria-hidden="true" data-bs-backdrop="static">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content">
         <div class="modal-header">
@@ -146,11 +205,9 @@
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
         <div class="modal-body">
-          <form>
-            <div class="mb-3">
-              選択した項目を削除しますか？
-            </div>
-          </form>
+          <div class="text-center">
+            選択した項目を削除しますか？
+          </div>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
@@ -160,8 +217,7 @@
     </div>
   </div>
   <!-- ファイル共有 Modal -->
-  <div class="modal fade" id="file-share" tabindex="-1" aria-labelledby="file-share" aria-hidden="true"
-    data-bs-backdrop="static">
+  <div class="modal fade" id="share-modal" tabindex="-1" aria-labelledby="file-share" aria-hidden="true" data-bs-backdrop="static">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content">
         <div class="modal-header">
@@ -188,6 +244,7 @@
 <script>
   const userID = "<%= id %>";
   const data = JSON.parse('<%- JSON.stringify(data) %>');
+  const pageUrl = location.href;
   const currentPath = pageUrl.substring(pageUrl.indexOf("directories/")).replace("directories/", "");
   const japanese = {
     "emptyTable": "コンテンツがありません。",
