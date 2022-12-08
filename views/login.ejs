@@ -1,66 +1,67 @@
 <!DOCTYPE html>
 <html lang="ja">
+
 <head>
-    <meta charset="UTF-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- jQuery -->
-    <script src="/public/javascripts/jquery-3.6.1.min.js"></script>
-    <!-- Bootstrap css-->
-    <link rel="stylesheet" type="text/css" href="/public/stylesheets/bootstrap-5.0.2/bootstrap.min.css">
-    <script src="/public/javascripts/bootstrap-5.0.2/bootstrap.bundle.min.js"></script>
-    <!-- -->
-    <link rel="stylesheet" type="text/css" href="/public/stylesheets/style.css">
-    <title>登録画面</title>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- jQuery -->
+  <script src="/public/javascripts/jquery-3.6.1.min.js"></script>
+  <!-- Bootstrap css-->
+  <link rel="stylesheet" type="text/css" href="/public/stylesheets/bootstrap-5.0.2/bootstrap.min.css">
+  <script src="/public/javascripts/bootstrap-5.0.2/bootstrap.bundle.min.js"></script>
+  <!-- -->
+  <link rel="stylesheet" type="text/css" href="/public/stylesheets/style.css">
+  <title>登録画面</title>
 </head>
+
 <body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-        <div class="container-fluid">
-            <a class="navbar-brand" href="#">IPFS</a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarSupportedContent">
-                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-                    <li class="nav-item">
-                        <a class="nav-link" href="/register">新規登録</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/login">ログイン</a>
-                    </li>
-                </ul>
-            </div>
-        </div>
-    </nav>
-    <div class="container my-5 p-5 border rounded">
-        <h1 class="pb-2">ログイン</h1>
-        <form method="post" autocomplete="off" action="/login">
-            <div class="mb-3">
-                <label for="user-id" class="form-label">ユーザーID</label>
-                <% if( id !== undefined && id !== "" ) {%>
-                <input required type="text" class="form-control" id="user-id" name="user-id" placeholder="ユーザーIDを入力" value="<%= id %>" />
-                <%} else {%>
-                <input required type="text" class="form-control" id="user-id" name="user-id" placeholder="ユーザーIDを入力" />
-                <% } %>
-            </div>
-            <div class="mb-3">
-                <label for="password" class="form-label">パスワード</label>
-                <input required type="password" class="form-control" id="password" name="password"
-                    placeholder="パスワードを入力" />
-            </div>
-            <% if ( invalidInput ) {%>
-            <div class="alert alert-danger 1" style="display: block">
-                    パスワードが間違っています。
-            </div>
-            <% } %>
-            <div class="mb-3 form-check">
-                <input type="checkbox" class="form-check-input" id="password-display-switch"
-                    name="password-display-switch" />
-                <label class="form-check-label" for="password-display-switch">パスワードを表示する。</label>
-            </div>
-            <button type="submit" class="btn btn-primary" id="btn" disabled>ログイン</button>
-        </form>
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="#">IPFS</a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarSupportedContent">
+        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+          <li class="nav-item">
+            <a class="nav-link" href="/register">新規登録</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/login">ログイン</a>
+          </li>
+        </ul>
+      </div>
     </div>
+  </nav>
+  <div class="container my-5 p-5 border rounded">
+    <h1 class="pb-2">ログイン</h1>
+    <form method="post" autocomplete="off" action="/login">
+      <div class="mb-3">
+        <label for="user-id" class="form-label">ユーザーID</label>
+          <% if( id !==undefined && id !=="" ) {%>
+          <input required type="text" class="form-control" id="user-id" name="user-id" placeholder="ユーザーIDを入力" value="<%= id %>"/>
+          <%} else {%>
+          <input required type="text" class="form-control" id="user-id" name="user-id" placeholder="ユーザーIDを入力"/>
+          <% } %>
+      </div>
+      <div class="mb-3">
+        <label for="password" class="form-label">パスワード</label>
+        <input required type="password" class="form-control" id="password" name="password" placeholder="パスワードを入力"/>
+      </div>
+      <% if ( invalidInput ) {%>
+      <div class="alert alert-danger 1" style="display: block">
+        パスワードが間違っています。
+      </div>
+      <% } %>
+      <div class="mb-3 form-check">
+        <input type="checkbox" class="form-check-input" id="password-display-switch" name="password-display-switch"/>
+        <label class="form-check-label" for="password-display-switch">パスワードを表示する。</label>
+      </div>
+      <button type="submit" class="btn btn-primary" id="btn" disabled>ログイン</button>
+    </form>
+  </div>
 </body>
 <script type="text/javascript" src="/public/javascripts/login.js"></script>
+
 </html>

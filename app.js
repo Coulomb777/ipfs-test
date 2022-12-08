@@ -82,7 +82,7 @@ app.use((err, req, res, next) => {
   console.log(err.message);
   // render the error page
   res.status(err.status || 500);
-  res.render("error", { status: err.status, message: err.message});
+  res.render("error", { status: err.status, message: err.message });
 });
 
 export default app;

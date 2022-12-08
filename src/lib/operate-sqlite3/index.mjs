@@ -11,13 +11,13 @@ const dbPath = `${__dirname}/database.db`;
  * データベース作成。
  */
 export function createDB() {
-    // データベースがなければ作る。
-    if (!fs.existsSync(dbPath)) {
-        fs.writeFileSync(dbPath, "", (err) => {
-            if (err) console.log(`cannot create ${dbPath}`);
-        });
-        console.log(`create ${dbPath}`);
-    } 
+  // データベースがなければ作る。
+  if (!fs.existsSync(dbPath)) {
+    fs.writeFileSync(dbPath, "", (err) => {
+      if (err) console.log(`cannot create ${dbPath}`);
+    });
+    console.log(`create ${dbPath}`);
+  }
 }
 
 /**
@@ -26,10 +26,10 @@ export function createDB() {
  * @return 
  */
 export function open() {
-    try {
-        const db = new sqlite3(dbPath, {verbose: console.log()});
-        return db;
-    } catch (err) {
-        throw err;
-    }
+  try {
+    const db = new sqlite3(dbPath, { verbose: console.log() });
+    return db;
+  } catch (err) {
+    throw err;
+  }
 }

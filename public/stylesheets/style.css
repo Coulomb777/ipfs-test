@@ -1,17 +1,21 @@
-.container {
+body {
   user-select: none;
 }
+
 .file {
   cursor: pointer;
   cursor: hand;
 }
+
 .dir {
   cursor: pointer;
   cursor: hand;
 }
+
 .file-menu .dropdown-toggle::after {
   display: none;
 }
+
 .table-radius {
   border: 1px solid;
   border-radius: 5px;
@@ -20,11 +24,17 @@
   padding-right: 0;
   padding-left: 0;
 }
+
 .table-radius tr:last-child td {
   border-bottom: none;
 }
+
 table.dataTable thead .sorting:after,
 table.dataTable thead .sorting_asc:before,
 table.dataTable thead .sorting_desc:before {
   left: 70px;
+}
+
+.emphasized {
+  background-color: rgba(152, 104, 230, 0.486);
 }

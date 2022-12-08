@@ -10,7 +10,7 @@ import all from "it-all";
 import last from "it-last";
 import stream from "stream";
 
-import * as operateSqlite3 from "../src/lib/operate-sqlite3/index.mjs"; 
+import * as operateSqlite3 from "../src/lib/operate-sqlite3/index.mjs";
 import * as doCrypto from "../src/lib/do-crypto/index.mjs";
 import { node } from "../app.js";
 
@@ -22,8 +22,7 @@ const cryptoAlgorithm = "aes-256-cbc";
 const upload = multer({ dest: `${__dirname}/tmp/` });
 
 // 共通処理
-router.use("/*", (req, res, next) => { 
-  console.log(req.session.user);
+router.use("/*", (req, res, next) => {
   if (!req.session.user) { // セッションが存在しない。
     // /login にリダイレクト。
     return res.redirect("/login");
@@ -58,14 +57,12 @@ router.get("/:id/directories/:path(*|.?)", async (req, res, next) => {
   const dirPath = path.join(dbData["home_cid"], reqPath);
 
   let contents = new Array();
-  
-  console.log(dirPath);
+
   try {
-    for await (let content of node.ls(dirPath, {timeout: 30000})) {
+    for await (let content of node.ls(dirPath, { timeout: 30000 })) {
       contents.push({ content: content, cid: content.cid.toString() });
     }
   } catch (err) {
-    console.log(err);
     let error = new Error("Not found.");
     error.status = 404;
     return next(error);
@@ -101,7 +98,7 @@ router.post("/:id/upload", upload.single("file"), async (req, res) => {
   db.prepare("BEGIN").run();
   // データベースから salt と iv を取得。
   const dbData = db.prepare("SELECT salt, iv FROM users WHERE id = ?").get(userID);
-  
+
   // salt、iv、key の設定。
   const salt = Buffer.from(dbData["salt"], "hex");
   const iv = Buffer.from(dbData["iv"], "hex");
@@ -154,13 +151,13 @@ router.post("/:id/mkdir", async (req, res) => {
   const password = req.body["password"];
   const dirPath = req.body["path"];
   const newDirName = req.body["dir"];
-
+  console.log(newDirName)
   const db = operateSqlite3.open();
   // トランザクション開始。
   db.prepare("BEGIN").run();
   // データベースから salt と iv を取得。
   const dbData = db.prepare("SELECT salt, iv FROM users WHERE id = ?").get(userID);
-  
+
   // salt、iv、key の設定。
   const salt = Buffer.from(dbData["salt"], "hex");
   const iv = Buffer.from(dbData["iv"], "hex");
@@ -168,6 +165,7 @@ router.post("/:id/mkdir", async (req, res) => {
 
   // ディレクトリ名の暗号化。
   const encryptedNewDirName = doCrypto.encryptString(cryptoAlgorithm, newDirName, key, iv);
+  console.log(encryptedNewDirName)
 
   // ホームディレクトリからのパス
   const dirPathFromHomeDir = path.posix.join(dirPath, encryptedNewDirName);
@@ -232,6 +230,7 @@ router.post("/:id/decrypt/text", (req, res) => {
   const userID = req.params.id;
   const password = req.body["password"];
   const text = req.body["text"];
+  console.log(text)
 
   const db = operateSqlite3.open();
   // データベースから salt と iv を取得。
@@ -261,30 +260,30 @@ router.post("/:id/decrypt/file", async (req, res) => {
   // データベースから salt と iv を取得。
   const dbData = db.prepare("SELECT salt, iv FROM users WHERE id = ?").get(userID);
   db.close();
-  
+
   // salt、iv、key の設定。
   const salt = Buffer.from(dbData["salt"], "hex");
   const iv = Buffer.from(dbData["iv"], "hex");
   const key = crypto.scryptSync(password, salt, 32);
-  
+
   // 暗号化されたファイルのバイナリ
   const encryptedBuffer = uint8ArrayConcat(await all(node.cat(cid)));
 
   // ファイルの復号化。
   const fileBuffer = doCrypto.decryptFile(cryptoAlgorithm, new Uint8Array(encryptedBuffer), key, iv);
-  
+
   let type = await fileType.fileTypeFromBuffer(fileBuffer);
   if (!type) {
     type = { ext: "text", mime: "text/plain" };
   }
-  
+
   const dlstream = new stream.PassThrough();
   dlstream.end(Buffer.from(fileBuffer));
 
   const header = {
-      "Content-Disposition": `attachment; filename=${cid}.${type.ext}`,
-      "Content-Length": fileBuffer.length,
-      "Content-Type": type.mime ? type.mime : "text/plain" 
+    "Content-Disposition": `attachment; filename=${cid}.${type.ext}`,
+    "Content-Length": fileBuffer.length,
+    "Content-Type": type.mime ? type.mime : "text/plain"
   }
 
   res.writeHead(200, header);

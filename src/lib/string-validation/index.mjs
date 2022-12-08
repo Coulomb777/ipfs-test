@@ -4,9 +4,9 @@
  * @returns {boolean} 
  */
 function isAscii(str) {
-    str = (str === null) ? "" : str;
-    if (str.match(/^[\x20-\x7e]+$/)) return true;
-    else return false;
+  str = (str === null) ? "" : str;
+  if (str.match(/^[\x20-\x7e]+$/)) return true;
+  else return false;
 }
 
 /**
@@ -15,9 +15,9 @@ function isAscii(str) {
  * @returns {boolean}
  */
 export function isCorrectForm(str) {
-    str = (str === null || str === undefined) ? "" : str;
-    if (str.startsWith(" ") || str.endsWith(" ") || !isAscii(str)) {
-        return false;
-    }
-    return true;
+  str = (str === null || str === undefined) ? "" : str;
+  if (str.startsWith(" ") || str.endsWith(" ") || !isAscii(str)) {
+    return false;
+  }
+  return true;
 }
