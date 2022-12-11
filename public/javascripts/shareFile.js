@@ -3,7 +3,8 @@ $(async () => {
   const json = {
     password: localStorage.getItem(userID),
     cid: cid,
-    ownership: true
+    ownership: false,
+    contentName: contentName
   }
 
   // ファイルの要求・表示。
@@ -14,7 +15,7 @@ $(async () => {
   });
   if (res.ok) {
     const blob = await res.blob();
-    await $(".iframe-container").append(
+    await $(".container").append(
       `<iframe src="${window.URL.createObjectURL(blob)}"}"></iframe>`
     );
   } else {
@@ -22,11 +23,11 @@ $(async () => {
   }
 
   // iframe の見た目の調整。
-  $(".iframe-container iframe").on("load", async () => {
-    await $(".iframe-container iframe").contents().find("html").css("height", "");
-    await $(".iframe-container iframe").contents().find("html").css("display", "block");
+  $(".container iframe").on("load", async () => {
+    await $(".container iframe").contents().find("html").css("height", "");
+    await $(".container iframe").contents().find("html").css("display", "block");
 
-    const iframeImg = await $(".iframe-container iframe").contents().find("img");
+    const iframeImg = await $(".container iframe").contents().find("img");
     if (iframeImg.length > 0) {
       await iframeImg.css("display", "block");
       await iframeImg.css("width", "100%");

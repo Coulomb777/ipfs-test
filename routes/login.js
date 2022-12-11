@@ -1,6 +1,7 @@
 import { Router } from "express";
 import last from "it-last";
 import crypto from "crypto";
+import path from "path";
 
 import * as doCrypto from "../src/lib/do-crypto/index.mjs";
 import * as stringValidation from "../src/lib/string-validation/index.mjs";
@@ -54,7 +55,7 @@ router.post("/", async (req, res) => {
   let encryptedHomeDir;
 
   try { // idからホームディレクトリ情報を取得。
-    encryptedHomeDir = (await last(node.files.ls(`/${userID}`, { timeout: 30000 }))).name;
+    encryptedHomeDir = (await last(node.files.ls(`/${path.join(userID, "home")}`, { timeout: 30000 }))).name;
   } catch (err) {
     throw err;
   }
@@ -70,6 +71,7 @@ router.post("/", async (req, res) => {
     // /user/{id} にリダイレクト。
     res.redirect(`/user/${userID}`);
   } catch (err) { // パスワードが違う。
+    console.log(err)
     // ログイン画面に戻る。
     res.render("login", { id: userID, invalidInput: true });
   }

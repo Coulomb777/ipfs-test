@@ -75,27 +75,17 @@
         <strong>Loading...</strong>
       </div>
     </div>
-    <div class="contents" style="display: none;">
+    <div class="contents" style="display: none">
       <ul class="nav nav-tabs">
         <li class="nav-item">
-          <a class="nav-link active" aria-current="page" href="/user/<%= id %>">ファイル</a>
+          <a class="nav-link" href="/user/<%= id %>">ファイル</a>
         </li>
         <li class="nav-item">
-          <a class="nav-link" href="/user/<%= id %>/share">共有ファイル</a>
+          <a class="nav-link active" aria-current="page" href="/user/<%= id %>/share">共有ファイル</a>
         </li>
       </ul>
       <div class="row">
-        <div class="col-9 text-break">
-          <ul class="nav">
-            <li class="nav-item">
-              <a class="nav-link active" aria-current="page">
-                <a href="/user/<%= id %>" draggable="false">home</a>
-                <a id="path" draggable="false"></a>
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div class="col-3">
+        <div class="col-12" style="height: 30px">
           <ul class="nav justify-content-end">
             <li class="nav-item">
               <!-- Button trigger modal -->
@@ -103,45 +93,28 @@
                 削除
               </button>
             </li>
-            <li class="nav-item dropdown">
-              <a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" role="button" aria-expanded="false"></a>
-              <ul class="dropdown-menu">
-                <li>
-                  <label class="dropdown-item">
-                    ファイルを追加
-                    <input type="file" class="dropdown-item" id="add-file" name="add-file" hidden multiple/>
-                  </label>
-                </li>
-                <li>
-                  <label class="dropdown-item" id="add-dir">
-                    ディレクトリを追加
-                    <!-- Button trigger modal -->
-                    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#dir-modal" hidden></button>
-                  </label>
-                </li>
-              </ul>
-            </li>
           </ul>
         </div>
         <hr>
         <div class="col-12">
-          <table class="table table-sm table-hover table-radius drop-area" id="content-list">
+          <table class="table table-sm table-hover table-radius" id="content-list">
             <thead class="bg-dark" style="color: white">
               <tr>
                 <th class="th-sm text-center"></th>
                 <th class="th-sm"></th>
                 <th class="th-sm" id="th-file-name">ファイル名</th>
+                <th class="th-sm" id="th-from">共有元ID</th>
                 <th class="th-sm"></th>
               </tr>
             </thead>
             <tbody class="files">
-  
+
             </tbody>
           </table>
         </div>
       </div>
-    </div>
-  </div>
+    </div> 
+  </div>      
   <!-- ログアウト Modal -->
   <div class="modal fade" id="logout-modal" tabindex="-1" aria-labelledby="logout-confirm" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
@@ -162,51 +135,6 @@
       </div>
     </div>
   </div>
-  <!-- ディレクトリアップロード未対応 Modal -->
-  <div class="modal fade" id="alert-dir" tabindex="-1" aria-labelledby="drop-dir" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="drop-dir">ディレクトリアップロード</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body">
-          <div class="text-center">
-            ディレクトリのアップロードには対応していません...。
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-primary" data-bs-dismiss="modal">OK</button>
-        </div>
-      </div>
-    </div>
-  </div>
-  <!-- ディレクトリ作成 Modal -->
-  <div class="modal fade" id="dir-modal" tabindex="-1" aria-labelledby="input-dir-name" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="input-dir-name">ディレクトリ作成</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body">
-          <form>
-            <div class="mb-3">
-              <label for="dir" class="col-form-label">ディレクトリ名</label>
-              <input type="text" class="form-control" id="dir-name" autocomplete="off">
-              <div class="alert alert-danger text-center" id="dir-alert" role="alert" style="padding: 0; margin-top: 5px;" hidden>
-                ディレクトリ名を入力してください。
-              </div>
-            </div>
-          </form>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
-          <button type="button" class="btn btn-primary" id="make-dir" disabled>作成</button>
-        </div>
-      </div>
-    </div>
-  </div>
   <!-- ファイル削除 Modal -->
   <div class="modal fade" id="remove-modal" tabindex="-1" aria-labelledby="remove-confirm" aria-hidden="true" data-bs-backdrop="static">
     <div class="modal-dialog modal-dialog-centered">
@@ -217,7 +145,7 @@
         </div>
         <div class="modal-body">
           <div class="text-center">
-            選択した項目を削除しますか？
+            選択した項目を共有ディレクトリから削除しますか？
           </div>
         </div>
         <div class="modal-footer">
@@ -227,56 +155,6 @@
       </div>
     </div>
   </div>
-  <!-- ファイル共有 Modal -->
-  <div class="modal fade" id="share-modal" tabindex="-1" aria-labelledby="file-share" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered" style="overflow-y: initial !important">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="file-share">ファイル共有</h5>
-          <div id="modal-cid" hidden></div>
-          <div id="modal-content-name" hidden></div>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body" style="height: 300px; overflow-y: auto;">
-          <form>
-            <div class="mb-3">
-              <label for="dir" class="col-form-label">共有相手（ID）</label>
-              <input type="text" class="form-control" id="share-target" autocomplete="off">
-              <table class="table table-sm table-hover table-radius drop-area" id="users-table" style="margin-top: 10px; display: none;">
-                <tbody id="search-users">
-
-                </tbody>
-              </table>
-            </div>
-          </form>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">キャンセル</button>
-          <button type="button" class="btn btn-primary" id="share" disabled>共有</button>
-        </div>
-      </div>
-    </div>
-  </div>
-  <!-- ファイル共有完了 Modal -->
-  <div class="modal fade" id="share-complete-modal" tabindex="-1" aria-labelledby="share-complete" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="share-complete">共有完了</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body">
-          <div class="text-center">
-            ファイルの共有が完了しました。
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-primary" data-bs-dismiss="modal">OK</button>
-        </div>
-      </div>
-    </div>
-  </div>
-</body>
 <script>
   const userID = "<%= id %>";
   const data = JSON.parse('<%- JSON.stringify(data) %>');
@@ -366,11 +244,11 @@
     paging: false,
     order: [2, "asc"],
     columnDefs: [
-      { targets: [0, 1, 3], orderable: false }
+      { targets: [0, 1, 3, 4], orderable: false }
     ],
     language: japanese
   });
 </script>
-<script src="/public/javascripts/user.js"></script>
+<script src="/public/javascripts/share.js"></script>
 
 </html>

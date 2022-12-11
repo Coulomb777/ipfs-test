@@ -1,6 +1,4 @@
 $(async () => {// 準備処理。
-
-  const pageUrl = window.location.href;
   await loadDirectory();
 
   // ロード画面を隠す・ページ内容の表示。
@@ -26,7 +24,7 @@ $(window).on("load", async () => { // ページ読み込み終了後の処理。
     window.location.reload();
   });
 
-  // ディレクトリの追加。
+  // ディレクトリの追加ボタンを押したときの処理。
   $(document).on("click", "#make-dir", async (e) => {
     e.stopPropagation();
     e.preventDefault();
@@ -34,13 +32,32 @@ $(window).on("load", async () => { // ページ読み込み終了後の処理。
     await makeDirectory();
     window.location.reload();
   });
+
+  // ディレクトリ名入力時の処理。
   $(document).on("keydown", "#dir-name", async (e) => {
-    if (e.key === "Enter") {
+    const input = $("#dir-name").val();
+
+    if(e.key === "Enter") {
       e.stopPropagation();
       e.preventDefault();
 
-      await makeDirectory();
-      window.location.reload();
+      if (input !== "") {
+        await makeDirectory();
+        window.location.reload();
+      } 
+    }
+  });
+
+  // ディレクトリ名入力後の処理。
+  $(document).on("keyup", "#dir-name", () => {
+    const input = $("#dir-name").val();
+
+    if (input === "") {
+      $("#dir-alert").removeAttr("hidden");
+      $("#make-dir").attr("disabled", "");
+    } else {
+      $("#dir-alert").attr("hidden", "");
+      $("#make-dir").removeAttr("disabled");
     }
   });
 
@@ -51,24 +68,6 @@ $(window).on("load", async () => { // ページ読み込み終了後の処理。
 
     await rmFiles();
     window.location.reload();
-  });
-
-  // ファイル共有モーダルを開いた時の処理。
-  $("#file-share").on("show.bs.modal", (e) => {
-    e.stopPropagation();
-    e.preventDefault();
-
-    const shareBtn = $(e.relatedTarget);
-    const cid = shareBtn.data("cid");
-
-    $("#modal-cid").text(cid);
-  });
-
-  // ファイル共有ボタン。
-  $(document).on("click", "#share", (e) => {
-    e.stopPropagation();
-    e.preventDefault();
-    shareFile();
   });
 
   // コンテンツのチェックボックスについての処理。
@@ -83,7 +82,6 @@ $(window).on("load", async () => { // ページ読み込み終了後の処理。
     else {
       $("#remove-btn").hide();
     }
-
   });
 
   // ドラッグ中にドロップエリアに入った時。
@@ -146,6 +144,68 @@ $(window).on("load", async () => { // ページ読み込み終了後の処理。
 
     window.location.href = $(e.currentTarget).attr("href");
   });
+
+  // ファイル共有モーダルを開いた時の処理。
+  $(document).on("show.bs.modal", "#share-modal", (e) => {
+    const shareMenuBtn = $(e.relatedTarget);
+    const cid = shareMenuBtn.data("cid");
+    const contentName = shareMenuBtn.data("name");
+
+    $("#modal-cid").text(cid);
+    $("#modal-content-name").text(contentName);
+  });
+
+  let isPress;
+  // ファイル共有モーダル内へのID入力時の処理。
+  // Enter キーのみデフォルトとは違う処理を行う。
+  $(document).on("keypress", "#share-target", async (e) => {
+    isPress = true;
+    if (e.key === "Enter") {
+      e.stopPropagation();
+      e.preventDefault();
+
+      if (!$("#share").attr("disabled")) {
+        await shareFile();
+      }
+    }
+  });
+
+  // ファイル共有モーダル内へのID入力後の処理。
+  $(document).on("keyup", "#share-target", async () => {
+    isPress = false;
+    const input = $("#share-target").val();
+
+    $("#share").attr("disabled", "");
+    if (isPress || input === "") {
+      $("#users-table").hide();
+    } else {
+      await reloadUsersTable(input);
+      $("#users-table").show();
+
+      for (const user of $(".search-user")) {
+        if ($(user).text() === input) {
+          $("#share").removeAttr("disabled");
+          break;
+        }
+      }
+    } 
+  });
+
+  // ファイル共有モーダル内で検索ユーザをクリックしたときの処理。
+  $(document).on("click", ".search-user", (e) => {
+    const targetID = $(e.target).text();
+    $("#share-target").val(targetID);
+    $("#share").removeAttr("disabled");
+    $("#users-table").hide();
+  });
+
+  // ファイル共有ボタンを押した後の処理。
+  $(document).on("click", "#share", async (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    
+    await shareFile();
+  });
 });
 
 /////////////////////////////////////////////////////////////////////////
@@ -182,12 +242,15 @@ async function makeDirectory() {
 }
 
 async function listFile(cid, name) {
-  const params = new URLSearchParams();
-  params.append("password", localStorage.getItem(userID));
-  params.append("text", name);
+  const json = {
+    password: localStorage.getItem(userID),
+    text: name,
+    ownership: true
+  }
   const res = await fetch(`/user/${userID}/decrypt/text`, {
     method: "POST",
-    body: params
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(json)
   });
   if (res.ok) {
     const data = await res.json();
@@ -220,9 +283,9 @@ async function listFile(cid, name) {
       + `          <a class="dropdown-item" href="/user/${userID}/download/${cid}" target="_blank" rel="noopener noreferrer" draggable="false">ダウンロード</a>`
       + `        </li>`
       + `        <li>`
-      + `          <label class="dropdown-item" id="share-modal">`
+      + `          <label class="dropdown-item">`
       + `            共有`
-      + `            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#file-share" data-cid="${cid}" hidden></button>`
+      + `            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#share-modal" data-cid="${cid}" data-name="${name}" hidden></button>`
       + `          </label>`
       + `        </li>`
       + `      </ul>`
@@ -254,12 +317,15 @@ async function listFile(cid, name) {
 }
 
 async function listDir(name) {
-  const params = new URLSearchParams();
-  params.append("password", localStorage.getItem(userID));
-  params.append("text", name);
+  const json = {
+    password: localStorage.getItem(userID),
+    text: name,
+    ownership: true
+  }
   const res = await fetch(`/user/${userID}/decrypt/text`, {
     method: "POST",
-    body: params
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(json)
   });
   if (res.ok) {
     const data = await res.json();
@@ -340,10 +406,10 @@ async function loadDirectory() {
     }
   }
   // テーブルレイアウトの調整。
-  $($('th')[0]).css("width", "5%");
-  $($('th')[1]).css("width", "5%");
-  $($('th')[2]).css("width", "80%");
-  $($('th')[3]).css("width", "10%");
+  $($("th")[0]).css("width", "5%");
+  $($("th")[1]).css("width", "5%");
+  $($("th")[2]).css("width", "80%");
+  $($("th")[3]).css("width", "10%");
 
   // パス反映。
   if (currentPath !== "") {
@@ -360,12 +426,15 @@ async function getDecryptedDirsName() {
   const encryptedDirs = currentPath.split("/");
   let dirs = new Array();
   for (let dir of encryptedDirs) {
-    const params = new URLSearchParams();
-    params.append("password", localStorage.getItem(userID));
-    params.append("text", dir);
+    const json = {
+      password: localStorage.getItem(userID),
+      text: dir,
+      ownership: true
+    }
     const res = await fetch(`/user/${userID}/decrypt/text`, {
       method: "POST",
-      body: params
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(json)
     })
     if (res.ok) {
       const data = await res.json();
@@ -377,7 +446,59 @@ async function getDecryptedDirsName() {
   return dirs;
 }
 
+async function reloadUsersTable(target) {
+  const params = new URLSearchParams();
+  params.append("target", target);
+  const res = await fetch(`/user/search`, {
+    method: "POST",
+    body: params
+  });
+  if (res.ok) {
+    const data = await res.json();
+    const users = data.users;
+
+    let table, isOtherUserExist = false;
+    if (users.length > 0) {
+      for (const user of users) {
+        if (user !== userID) {
+          isOtherUserExist = true;
+          table +=
+              `<tr>`
+            + `  <td class="search-user" style="padding-left: 10px;">${user}</td>`
+            + `</tr>`;
+        }
+      }
+      $("#search-users").html(table);
+    }
+    if (!isOtherUserExist) {
+      $("#search-users").html(
+        '<tr><td class="text-center" style="color: gray;">ユーザーが見つかりません。</td></tr>'
+      );
+    }
+  } else {
+    throw new Error(res.statusText);
+  }
+}
+
 async function shareFile() {
   const cid = $("#modal-cid").text();
+  const contentName = $("#modal-content-name").text();
 
+  const params = new URLSearchParams();
+  params.append("target-id", $("#share-target").val());
+  params.append("cid", cid);
+  params.append("content-name", contentName);
+  params.append("password", localStorage.getItem(userID));
+
+  const res = await fetch(`/user/${userID}/share`, {
+    method: "POST",
+    body: params
+  });
+
+  if (res.ok) {
+    $("#share-modal").modal("hide");
+    $("#share-complete-modal").modal("show");
+  } else {
+    throw new Error(res.statusText);
+  }
 }

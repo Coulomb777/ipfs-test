@@ -106,12 +106,18 @@ router.post("/processing", async (req, res) => {
   }
   const iv = crypto.randomBytes(16);
   const key = crypto.scryptSync(password, salt, 32);
-  // 文字列 "home" を暗号化。
-  const encryptedHomeName = doCrypto.encryptString(cryptoAlgorithm, "home", key, iv);
+  // ランダムな文字列を暗号化。(実質的なホームディレクトリの名前)
+  const encryptedHomeName = doCrypto.encryptString(cryptoAlgorithm, crypto.randomBytes(16).toString("hex"), key, iv);
   // ホームディレクトリのパス
-  const homeDirPath = path.join(userID, encryptedHomeName);
+  const homeDirPath = path.join(userID, "home", encryptedHomeName);
 
-  // IPFSノードにホームディレクトリを追加。
+  // 共有されたファイルを置く場所。
+  await node.files.mkdir(`/${path.join(userID, "share")}`, { parents: true });
+  // 共有されたファイルの復号化に必要な鍵を保存しておく場所。
+  await node.files.mkdir(`/${path.join(userID, "shareKey")}`, { parents: true });
+  // 自身が共有したファイルの情報を保管しておく場所。
+  await node.files.mkdir(`/${path.join(userID, "sharedFile")}`, { parents: true });
+  // IPFSノードのホームディレクトリ。
   await node.files.mkdir(`/${homeDirPath}`, { parents: true });
   // homeCid: ホームディレクトリのCIDを取得。
   const homeCid = (await node.files.stat(`/${homeDirPath}`)).cid.toString();
