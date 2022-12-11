@@ -18,6 +18,7 @@ $(window).on("load", async () => { // ページ読み込み終了後の処理。
       return;
     }
     
+    $("#processing-modal").modal("show");
     for (const file of files) {
       await addFile(file);
     }
@@ -29,6 +30,8 @@ $(window).on("load", async () => { // ページ読み込み終了後の処理。
     e.stopPropagation();
     e.preventDefault();
 
+    $("#dir-modal").modal("hide");
+    $("#processing-modal").modal("show");
     await makeDirectory();
     window.location.reload();
   });
@@ -42,6 +45,8 @@ $(window).on("load", async () => { // ページ読み込み終了後の処理。
       e.preventDefault();
 
       if (input !== "") {
+        $("#dir-modal").modal("hide");
+        $("#processing-modal").modal("show");
         await makeDirectory();
         window.location.reload();
       } 
@@ -66,6 +71,7 @@ $(window).on("load", async () => { // ページ読み込み終了後の処理。
     e.stopPropagation();
     e.preventDefault();
 
+    $("#processing-modal").modal("show");
     await rmFiles();
     window.location.reload();
   });
@@ -116,6 +122,7 @@ $(window).on("load", async () => { // ページ読み込み終了後の処理。
       }
     }
 
+    $("#processing-modal").modal("show");
     const files = e.originalEvent.dataTransfer.files;
     for (let file of files) {
       await addFile(file);
@@ -490,13 +497,15 @@ async function shareFile() {
   params.append("content-name", contentName);
   params.append("password", localStorage.getItem(userID));
 
+  $("#share-modal").modal("hide");
+  $("#processing-modal").modal("show");
   const res = await fetch(`/user/${userID}/share`, {
     method: "POST",
     body: params
   });
 
   if (res.ok) {
-    $("#share-modal").modal("hide");
+    $("#processing-modal").modal("hide");
     $("#share-complete-modal").modal("show");
   } else {
     throw new Error(res.statusText);
