@@ -3,7 +3,8 @@ $(async () => {
   const json = {
     password: localStorage.getItem(userID),
     cid: cid,
-    ownership: true
+    ownership: false,
+    contentName: contentName
   }
 
   // ファイルの取得・ダウンロード。
@@ -28,5 +29,5 @@ $(async () => {
   } else {
     throw new Error(res.statusText);
   }
-
+  
 });
