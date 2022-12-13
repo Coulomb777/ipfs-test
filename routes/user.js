@@ -31,11 +31,11 @@ router.use("/*", (req, res, next) => {
 
 router.use("/:id/*", (req, res, next) => {
   if (req.session.user != req.params.id) {
-    return res.redirect("/user")
+    return res.redirect("/user");
   }
   req.session.touch();
   next();
-})
+});
 
 // /user への GET 処理。
 router.get("/", (req, res) => {
@@ -59,11 +59,11 @@ router.get("/:id/directories/:path(*|.?)", async (req, res, next) => {
   const contents = new Array();
 
   try {
-    for await (let content of node.ls(dirPath, { timeout: 30000 })) {
+    for await (const content of node.ls(dirPath, { timeout: 30000 })) {
       contents.push({ content: content, cid: content.cid.toString() });
     }
   } catch (err) {
-    let error = new Error("Not found.");
+    const error = new Error("Not found.");
     error.status = 404;
     return next(error);
   }
@@ -75,21 +75,84 @@ router.get("/:id/directories/:path(*|.?)", async (req, res, next) => {
       contents: contents
     }
   });
-})
+});
 
 router.get("/:id/files/:cid", async (req, res) => {
-  res.render("file", { id: req.params.id, cid: req.params.cid });
+  const userID = req.params.id;
+  const password = req.session.password;
+  const cid = req.params.cid;
+
+  const db = operateSqlite3.open();
+  // データベースから salt と iv、 秘密鍵 を取得。
+  const dbData = db.prepare("SELECT salt, iv, encrypted_private_key FROM users WHERE id = ?").get(userID);
+  db.close();
+
+  // salt、iv、key の設定。
+  const salt = Buffer.from(dbData["salt"], "hex");
+  const iv = Buffer.from(dbData["iv"], "hex");
+  const key = crypto.scryptSync(password, salt, 32);
+
+  // 暗号化されたファイルのバイナリ
+  const encryptedBuffer = uint8ArrayConcat(await all(node.cat(cid)));
+
+  // ファイルの復号化。
+  const fileBuffer = doCrypto.decryptFile(cryptoAlgorithm, new Uint8Array(encryptedBuffer), key, iv);
+
+  const type = await fileType.fileTypeFromBuffer(fileBuffer);
+
+  const readStream = new stream.PassThrough();
+  readStream.end(Buffer.from(fileBuffer));
+
+  const header = {
+    "Content-Length": fileBuffer.length,
+    "Content-Type": type.mime ? type.mime : "text/plain"
+  }
+
+  res.writeHead(200, header);
+  readStream.pipe(res);
 });
 
 router.get("/:id/download/:cid", async (req, res) => {
-  res.render("download", { id: req.params.id, cid: req.params.cid });
+  const userID = req.params.id;
+  const password = req.session.password;
+  const cid = req.params.cid;
+
+  const db = operateSqlite3.open();
+  // データベースから salt と iv、 秘密鍵 を取得。
+  const dbData = db.prepare("SELECT salt, iv, encrypted_private_key FROM users WHERE id = ?").get(userID);
+  db.close();
+
+  // salt、iv、key の設定。
+  const salt = Buffer.from(dbData["salt"], "hex");
+  const iv = Buffer.from(dbData["iv"], "hex");
+  const key = crypto.scryptSync(password, salt, 32);
+
+  // 暗号化されたファイルのバイナリ
+  const encryptedBuffer = uint8ArrayConcat(await all(node.cat(cid)));
+
+  // ファイルの復号化。
+  const fileBuffer = doCrypto.decryptFile(cryptoAlgorithm, new Uint8Array(encryptedBuffer), key, iv);
+
+  const type = await fileType.fileTypeFromBuffer(fileBuffer);
+
+  const readStream = new stream.PassThrough();
+  readStream.end(Buffer.from(fileBuffer));
+
+  const header = {
+    "Content-Disposition": `attachment; filename=${cid}.${type.ext}`,
+    "Content-Length": fileBuffer.length,
+    "Content-Type": type.mime ? type.mime : "text/plain"
+  }
+
+  res.writeHead(200, header);
+  readStream.pipe(res);
 });
 
 // /user/{ユーザID}/upload への POST 処理。
 // ファイルのアップロードに対する処理。
 router.post("/:id/upload", upload.single("file"), async (req, res) => {
   const userID = req.params.id;
-  const password = req.body["password"];
+  const password = req.session.password;
   const filePath = req.body["path"];
   const fileName = req.body["file-name"];
 
@@ -117,15 +180,23 @@ router.post("/:id/upload", upload.single("file"), async (req, res) => {
   const homeDirPath = path.join(userID, "home", (await last(node.files.ls(`/${path.join(userID, "home")}`))).name);
   const absFilePath = path.join(homeDirPath, filePathFromHomeDir);
 
-  let isExist = true;
+  let isExist = false;
   try { // ファイルの存在確認。
     await node.files.stat(`/${absFilePath}`);
-  } catch (err) { // 存在しない場合。
-    isExist = false;
-  }
-  if (isExist) { // 存在していたらファイルを削除。
+    isExist = true;
+  } catch (err) { }
+
+  let isShared = false;
+  if (isExist) { // 存在している場合。
+    // ファイルを削除。
     await node.files.rm(`/${absFilePath}`);
+    try {
+      // 共有されていたファイルなのか確認。
+      await node.files.stat(`/${path.join(userID, "sharedFile", `.${encryptedName}`)}`);
+      isShared = true;
+    } catch (err) { }
   }
+
 
   // ファイルストリーム。
   const readStream = fs.createReadStream(req.file.path);
@@ -141,6 +212,39 @@ router.post("/:id/upload", upload.single("file"), async (req, res) => {
   db.prepare("COMMIT").run();
   db.close();
 
+  if (isShared) { // 共有されていたコンテンツの場合。
+    // 追加したコンテツのCIDを取得。
+    const contentCid = (await node.files.stat(`/${absFilePath}`)).cid.toString();
+    // ファイルの共有状況の情報。
+    const encryptedInfo = Buffer.from(uint8ArrayConcat(
+      await all(node.files.read(`/${path.join(userID, "sharedFile", `.${encryptedName}`)}`))
+    )).toString();
+    const contentInfoJsonString = doCrypto.decryptString(cryptoAlgorithm, encryptedInfo, key, iv);
+    const contentInfo = JSON.parse(contentInfoJsonString);
+
+    for (const targetID of Object.keys(contentInfo)) {
+      const params = new URLSearchParams();
+      params.append("target-id", targetID);
+      params.append("cid", contentCid);
+      params.append("content-name", encryptedName);
+      const result = await fetch(`http://localhost:3000/user/${userID}/share`, {
+        method: "POST",
+        headers: {
+          cookie: req.headers.cookie
+        },
+        body: params
+      });
+
+      if (result.status === 404) { // user not found
+        delete contentInfo[targetID];
+         // 暗号化。
+        const newEncryptedInfo = doCrypto.encryptString(cryptoAlgorithm, JSON.stringify(contentInfo), key, iv);
+        // コンテンツの共有状況の情報を更新。
+        await node.files.write(`/${path.join(userID, "sharedFile", `.${encryptedName}`)}`, Buffer.from(newEncryptedInfo), { create: true });
+      }
+    }
+  }
+
   res.status(200).end();
 });
 
@@ -148,10 +252,9 @@ router.post("/:id/upload", upload.single("file"), async (req, res) => {
 // ディレクトリを作成する。
 router.post("/:id/mkdir", async (req, res) => {
   const userID = req.params.id;
-  const password = req.body["password"];
+  const password = req.session.password;
   const dirPath = req.body["path"];
   const newDirName = req.body["dir"];
-  console.log(newDirName)
   const db = operateSqlite3.open();
   // トランザクション開始。
   db.prepare("BEGIN").run();
@@ -165,7 +268,6 @@ router.post("/:id/mkdir", async (req, res) => {
 
   // ディレクトリ名の暗号化。
   const encryptedNewDirName = doCrypto.encryptString(cryptoAlgorithm, newDirName, key, iv);
-  console.log(encryptedNewDirName)
 
   // ホームディレクトリからのパス
   const dirPathFromHomeDir = path.posix.join(dirPath, encryptedNewDirName);
@@ -209,7 +311,7 @@ router.post("/:id/rmFiles", async (req, res) => {
     const homeDirPath =  path.join(userID, "home", (await last(node.files.ls(`/${path.join(userID, "home")}`))).name);
 
     try { //コンテンツの削除
-      for (let target of targetFiles) {
+      for (const target of targetFiles) {
         const targetPath = path.posix.join(reqPath, target);
         await node.files.rm(`/${path.join(homeDirPath, targetPath)}`, { recursive: true });
       }
@@ -257,7 +359,7 @@ router.get("/:id/share", async (req, res) => {
 router.post("/:id/share", async (req, res) => {
   const userID = req.params.id;
   const targetID = req.body["target-id"];
-  const password = req.body["password"];
+  const password = req.session.password;
   const cid = req.body["cid"];
   const contentName = req.body["content-name"];
 
@@ -266,22 +368,25 @@ router.post("/:id/share", async (req, res) => {
   db.prepare("BEGIN").run();
   // データベースから salt と iv を取得。
   const dbData = db.prepare("SELECT salt, iv FROM users WHERE id = ?").get(userID);
-  const dbTargetData = db.prepare("SELECT publick_key FROM users WHERE id = ?").get(targetID);
+  // 相手の情報を取得。
+  const dbTargetData = db.prepare("SELECT COUNT(*), publick_key FROM users WHERE id = ?").get(targetID);
   // トランザクションの終了。
   db.prepare("COMMIT").run();
   db.close();
+
+  const targetUserCount = parseInt(dbTargetData["COUNT(*)"], 10);
+  if (targetUserCount === 0) { // ユーザが存在しない場合。
+    return res.status(404).send("user not found");
+  }
 
   // salt、iv、key の設定。
   const salt = Buffer.from(dbData["salt"], "hex");
   const iv = Buffer.from(dbData["iv"], "hex");
   const key = crypto.scryptSync(password, salt, 32);
-
   // ファイル名の復号化。
   const fileName = doCrypto.decryptString(cryptoAlgorithm, contentName, key, iv);
-
   // 暗号化されたファイルのバイナリ
   const encryptedBuffer = uint8ArrayConcat(await all(node.cat(cid)));
-
   // ファイルの復号化。
   const fileBuffer = doCrypto.decryptFile(cryptoAlgorithm, new Uint8Array(encryptedBuffer), key, iv);
 
@@ -289,10 +394,8 @@ router.post("/:id/share", async (req, res) => {
   const shareSalt = crypto.randomBytes(16);
   const shareIv = crypto.randomBytes(16);
   const shareKey = crypto.scryptSync(crypto.randomBytes(32), shareSalt, 32);
-
   // 暗号器
   const cipher = crypto.createCipheriv(cryptoAlgorithm, shareKey, shareIv);
-
   // 共有用にファイル名の暗号化。
   const encryptedName = doCrypto.encryptString(cryptoAlgorithm, fileName, shareKey, shareIv);
 
@@ -301,6 +404,8 @@ router.post("/:id/share", async (req, res) => {
   
   // 相手の共有ディレクトリにファイルを暗号化して追加。
   await node.files.write(`/${path.join(targetID, "share", encryptedName)}`, readStream.pipe(cipher), { create: true });
+  // コンテンツの共有先でのCID
+  const newSharedCid = (await node.files.stat(`/${path.join(targetID, "share", encryptedName)}`)).cid.toString();
 
   // コンテンツの共有状況の情報。
   let contentInfo;
@@ -313,38 +418,30 @@ router.post("/:id/share", async (req, res) => {
     // 更新のために、情報を手に入れたら削除。
     await node.files.rm(`/${path.join(userID, "sharedFile", `.${contentName}`)}`);
 
-    const currentSharedName = contentInfo[contentName][targetID].sharedName;
-    if (currentSharedName) { // 相手にこのコンテンツを共有したことがある場合。
+    const currentSharedName = contentInfo[targetID].name;
+    const currentSharedCid = contentInfo[targetID].cid;
+    if (currentSharedCid) { // 相手にこのコンテンツを共有したことがある場合。
       try {
         // 過去の共有情報は削除。
-        await node.files.rm(`/${path.join(targetID, "shareKey", `.${currentSharedName}`)}`);
+        await node.files.rm(`/${path.join(targetID, "shareKey", `.${currentSharedCid}`)}`);
         await node.files.rm(`/${path.join(targetID, "share", `${currentSharedName}`)}`);
       } catch (err) { // 相手側でコンテンツが共有ディレクトリから削除されている場合。
         // 例外をキャッチしてこのコンテンツの共有状況の情報が初期化されるのを防ぐ。
       }
     }
   } catch (err) { // なければ作る（このコンテンツの共有状況の初期化）。
-    console.log(err);
     contentInfo = {};
-    contentInfo[contentName] = {};
   }
 
   /**
-   contentInfo = {
-      |コンテンツ 1 の暗号化名|: {
-        |共有相手のID 1|: { sharedName:共有先でのコンテンツ暗号化名 },
-        |共有相手のID 2|: ...,
-        ...,
-        |共有相手のID n|: ...
-      },
-      |コンテンツ 2 の暗号化名|: ...,
+    contentInfo = {
+      |共有相手のID 1|: {name: |共有先での暗号化名|, cid: |共有先でのコンテンツのCID|},
+      |共有相手のID 2|: ...,
       ...,
-      |コンテンツ n の暗号化名|: ...
-   }
-   */
-  contentInfo[contentName][targetID] = {
-    sharedName: encryptedName
-  }
+      |共有相手のID n|: ...
+    }
+  */
+  contentInfo[targetID] = { name: encryptedName, cid: newSharedCid };
 
   // 暗号化。
   const newEncryptedInfo = doCrypto.encryptString(cryptoAlgorithm, JSON.stringify(contentInfo), key, iv);
@@ -367,29 +464,139 @@ router.post("/:id/share", async (req, res) => {
   );
 
   // 保存。
-  await node.files.write(`/${path.join(targetID, "shareKey", `.${encryptedName}`)}`, encryptedShareContentInfo, { create: true });
+  await node.files.write(`/${path.join(targetID, "shareKey", `.${newSharedCid}`)}`, encryptedShareContentInfo, { create: true });
 
   res.status(200).end();
 });
 
-router.get("/:id/share/files/:cid", (req, res) => {
-  const contentName = req.query.name;
-  if (!contentName) throw new Error("500");
-  res.render("shareFile", { id: req.params.id, cid: req.params.cid, contentName: contentName });
+router.get("/:id/share/files/:cid", async (req, res) => {
+  const userID = req.params.id;
+  const password = req.session.password;
+  const cid = req.params.cid;
+
+  const db = operateSqlite3.open();
+  // データベースから salt と iv、 秘密鍵 を取得。
+  const dbData = db.prepare("SELECT salt, iv, encrypted_private_key FROM users WHERE id = ?").get(userID);
+  db.close();
+
+  // salt、iv、key の設定。
+  const salt = Buffer.from(dbData["salt"], "hex");
+  const iv = Buffer.from(dbData["iv"], "hex");
+  const key = crypto.scryptSync(password, salt, 32);
+
+  // 暗号化されたファイルのバイナリ
+  const encryptedBuffer = uint8ArrayConcat(await all(node.cat(cid)));
+
+  // 秘密鍵の復号化。
+  const privateKey = doCrypto.decryptString(
+    cryptoAlgorithm, dbData["encrypted_private_key"], key, iv
+  );
+  // 共有コンテンツの復号化用情報を取得。
+  const encryptedShareContentInfo = uint8ArrayConcat(
+    await all(node.files.read(`/${path.join(userID, "shareKey", `.${cid}`)}`))
+  );
+  const shareContentInfo = JSON.parse(
+    crypto.privateDecrypt(
+      {
+        key: privateKey,
+        padding: crypto.constants.RSA_PKCS1_PADDING
+      },
+      Buffer.from(encryptedShareContentInfo)
+    ).toString("utf-8")
+  );
+
+  const shareKey = Buffer.from(shareContentInfo.shareKey, "hex");
+  const shareIv = Buffer.from(shareContentInfo.shareIv, "hex");
+
+  // ファイルの復号化。
+  const fileBuffer = doCrypto.decryptFile(cryptoAlgorithm, new Uint8Array(encryptedBuffer), shareKey, shareIv);
+
+  const type = await fileType.fileTypeFromBuffer(fileBuffer);
+
+  if (!type) {
+    type = { ext: "text", mime: "text/plain" };
+  }
+
+  const readStream = new stream.PassThrough();
+  readStream.end(Buffer.from(fileBuffer));
+
+  const header = {
+    "Content-Length": fileBuffer.length,
+    "Content-Type": type.mime ? type.mime : "text/plain"
+  }
+
+  res.writeHead(200, header);
+  readStream.pipe(res);
 });
 
-router.get("/:id/share/download/:cid", (req, res) => {
-  const contentName = req.query.name;
-  if (!contentName) throw new Error("500");
-  res.render("shareDownload", { id: req.params.id, cid: req.params.cid, contentName: contentName });
+router.get("/:id/share/download/:cid", async (req, res) => {
+  const userID = req.params.id;
+  const password = req.session.password;
+  const cid = req.params.cid;
+
+  const db = operateSqlite3.open();
+  // データベースから salt と iv、 秘密鍵 を取得。
+  const dbData = db.prepare("SELECT salt, iv, encrypted_private_key FROM users WHERE id = ?").get(userID);
+  db.close();
+
+  // salt、iv、key の設定。
+  const salt = Buffer.from(dbData["salt"], "hex");
+  const iv = Buffer.from(dbData["iv"], "hex");
+  const key = crypto.scryptSync(password, salt, 32);
+
+  // 暗号化されたファイルのバイナリ
+  const encryptedBuffer = uint8ArrayConcat(await all(node.cat(cid)));
+
+  // 秘密鍵の復号化。
+  const privateKey = doCrypto.decryptString(
+    cryptoAlgorithm, dbData["encrypted_private_key"], key, iv
+  );
+  // 共有コンテンツの復号化用情報を取得。
+  const encryptedShareContentInfo = uint8ArrayConcat(
+    await all(node.files.read(`/${path.join(userID, "shareKey", `.${cid}`)}`))
+  );
+  const shareContentInfo = JSON.parse(
+    crypto.privateDecrypt(
+      {
+        key: privateKey,
+        padding: crypto.constants.RSA_PKCS1_PADDING
+      },
+      Buffer.from(encryptedShareContentInfo)
+    ).toString("utf-8")
+  );
+
+  const shareKey = Buffer.from(shareContentInfo.shareKey, "hex");
+  const shareIv = Buffer.from(shareContentInfo.shareIv, "hex");
+
+  // ファイルの復号化。
+  const fileBuffer = doCrypto.decryptFile(cryptoAlgorithm, new Uint8Array(encryptedBuffer), shareKey, shareIv);
+
+  const type = await fileType.fileTypeFromBuffer(fileBuffer);
+
+  if (!type) {
+    type = { ext: "text", mime: "text/plain" };
+  }
+
+  const readStream = new stream.PassThrough();
+  readStream.end(Buffer.from(fileBuffer));
+
+  const header = {
+    "Content-Disposition": `attachment; filename=${cid}.${type.ext}`,
+    "Content-Length": fileBuffer.length,
+    "Content-Type": type.mime ? type.mime : "text/plain"
+  }
+
+  res.writeHead(200, header);
+  readStream.pipe(res);
 });
 
 // /user/{ユーザID}/decrypt/text への POST処理。
 // 暗号化文字列の復号化用。
 router.post("/:id/decrypt/text", async (req, res) => {
   const userID = req.params.id;
-  const password = req.body["password"];
+  const password = req.session.password;
   const text = req.body["text"];
+  const cid = req.body["cid"];
   const ownership = req.body["ownership"];
 
   const db = operateSqlite3.open();
@@ -403,17 +610,14 @@ router.post("/:id/decrypt/text", async (req, res) => {
   const key = crypto.scryptSync(password, salt, 32);
 
   let decryptedString, from = "";
-  if (ownership) { // 自身のコンテンツに対して。
-    // 文字列の復号化。
-    decryptedString = doCrypto.decryptString(cryptoAlgorithm, text, key, iv);
-  } else { // 共有コンテンツに対して。
+  if (!ownership) { // 共有コンテンツに対して。
     // 秘密鍵の復号化。
     const privateKey = doCrypto.decryptString(
       cryptoAlgorithm, dbData["encrypted_private_key"], key, iv
     );
     // 共有コンテンツの復号化用情報を取得。
     const encryptedShareContentInfo = uint8ArrayConcat(
-      await all(node.files.read(`/${path.join(userID, "shareKey", `.${text}`)}`))
+      await all(node.files.read(`/${path.join(userID, "shareKey", `.${cid}`)}`))
     );
     const shareContentInfo = JSON.parse(
       crypto.privateDecrypt(
@@ -431,86 +635,13 @@ router.post("/:id/decrypt/text", async (req, res) => {
 
     // 文字列の復号化。
     decryptedString = doCrypto.decryptString(cryptoAlgorithm, text, shareKey, shareIv);
+  } else { // 自身のコンテンツに対して。
+    // 文字列の復号化。
+    decryptedString = doCrypto.decryptString(cryptoAlgorithm, text, key, iv);
   }
 
   // Json 形式で応答。
   res.json({ text: decryptedString, from: from });
-});
-
-// /user/{ユーザID}/decrypt/file への POST処理。
-// 暗号化ファイルの復号化用。
-router.post("/:id/decrypt/file", async (req, res) => {
-  const userID = req.params.id;
-  const password = req.body["password"];
-  const cid = req.body["cid"];
-  const ownership = req.body["ownership"];
-
-  const db = operateSqlite3.open();
-  // データベースから salt と iv、 秘密鍵 を取得。
-  const dbData = db.prepare("SELECT salt, iv, encrypted_private_key FROM users WHERE id = ?").get(userID);
-  db.close();
-
-  // salt、iv、key の設定。
-  const salt = Buffer.from(dbData["salt"], "hex");
-  const iv = Buffer.from(dbData["iv"], "hex");
-  const key = crypto.scryptSync(password, salt, 32);
-
-  // 暗号化されたファイルのバイナリ
-  const encryptedBuffer = uint8ArrayConcat(await all(node.cat(cid)));
-
-  let fileBuffer, type;
-  if (ownership) { // 自身のコンテンツに対して。
-    console.log("true")
-    // ファイルの復号化。
-    fileBuffer = doCrypto.decryptFile(cryptoAlgorithm, new Uint8Array(encryptedBuffer), key, iv);
-
-    type = await fileType.fileTypeFromBuffer(fileBuffer);
-  } else { // 共有コンテンツに対して。
-    const contentName = req.body["contentName"];
-
-    // 秘密鍵の復号化。
-    const privateKey = doCrypto.decryptString(
-      cryptoAlgorithm, dbData["encrypted_private_key"], key, iv
-    );
-    console.log(`/${path.join(userID, "shareKey", `.${contentName}`)}`)
-    // 共有コンテンツの復号化用情報を取得。
-    const encryptedShareContentInfo = uint8ArrayConcat(
-      await all(node.files.read(`/${path.join(userID, "shareKey", `.${contentName}`)}`))
-    );
-    const shareContentInfo = JSON.parse(
-      crypto.privateDecrypt(
-        {
-          key: privateKey,
-          padding: crypto.constants.RSA_PKCS1_PADDING
-        },
-        Buffer.from(encryptedShareContentInfo)
-      ).toString("utf-8")
-    );
-
-    const shareKey = Buffer.from(shareContentInfo.shareKey, "hex");
-    const shareIv = Buffer.from(shareContentInfo.shareIv, "hex");
-
-    // ファイルの復号化。
-    fileBuffer = doCrypto.decryptFile(cryptoAlgorithm, new Uint8Array(encryptedBuffer), shareKey, shareIv);
-
-    type = await fileType.fileTypeFromBuffer(fileBuffer);
-  }
-
-  if (!type) {
-    type = { ext: "text", mime: "text/plain" };
-  }
-
-  const readStream = new stream.PassThrough();
-  readStream.end(Buffer.from(fileBuffer));
-
-  const header = {
-    "Content-Disposition": `attachment; filename=${cid}.${type.ext}`,
-    "Content-Length": fileBuffer.length,
-    "Content-Type": type.mime ? type.mime : "text/plain"
-  }
-
-  res.writeHead(200, header);
-  readStream.pipe(res);
 });
 
 // /user/search/{検索ID} への GET 処理。

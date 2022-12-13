@@ -37,9 +37,4 @@ $(() => {
     else $("#btn").prop("disabled", true);
   })
 
-  //formの送信ボタンが押されたら、localStorageにid/passwordのペアを保存。
-  $(document).on("click", "#btn", () => {
-    localStorage.setItem($("#user-id").val(), $("#password").val());
-  })
-
-})
+});
