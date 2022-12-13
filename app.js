@@ -2,12 +2,14 @@ import createError from "http-errors";
 import express from "express";
 import "express-async-errors";
 import session from "express-session";
+import crypto from "crypto";
 import sqlite3 from "better-sqlite3";
 import connectSqlite3 from "better-sqlite3-session-store";
 import path from "path";
 import { fileURLToPath } from "url";
 import bodyParser from "body-parser";
 import logger from "morgan";
+import cron from "node-cron";
 import * as ipfsDaemon from "ipfs-daemon"
 
 import indexRouter from "./routes/index.js";
@@ -55,8 +57,11 @@ app.use(express.json({ limit: "10mb" }));
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use("/public", express.static(path.join(__dirname, "public")));
 app.use(session({
-  secret: "QdxfZirx8NknNeCU-W3xg9ad4tsc8EQsR-T98KeLmxJLTeBdxnQAwk4QJKtDxNxg",
-  cookie: { maxAge: 60 * 60 * 1000 },
+  secret: "secret", //crypto.randomBytes(32).toString("hex"),
+  cookie: {
+    httpOnly: true,
+    maxAge: 60 * 60 * 1000
+  },
   resave: false,
   saveUninitialized: false,
   rolling: true,
@@ -87,6 +92,15 @@ app.use((err, req, res, next) => {
   // render the error page
   res.status(err.status || 500);
   res.render("error", { status: err.status, message: err.message });
+});
+
+// 五分おきに期限切れセッション情報は消す。
+cron.schedule("*/5 * * * *", () => {
+  const sessionDB = new sqlite3(`sessions.db`);
+  sessionDB.prepare(
+    "DELETE FROM sessions WHERE datetime('now') > datetime(expire)"
+  ).run();
+  sessionDB.close();
 });
 
 export default app;

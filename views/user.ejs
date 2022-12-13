@@ -85,45 +85,46 @@
         </li>
       </ul>
       <div class="row">
-        <div class="col-9 text-break">
-          <ul class="nav">
-            <li class="nav-item">
-              <a class="nav-link active" aria-current="page">
-                <a href="/user/<%= id %>" draggable="false">home</a>
-                <a id="path" draggable="false"></a>
-              </a>
-            </li>
-          </ul>
+        <div class="col-12 row border-bottom" style="margin-bottom: 1%;">
+          <div class="col-8 text-break">
+            <ul class="nav">
+              <li class="nav-item">
+                <a class="nav-link active" aria-current="page">
+                  <a href="/user/<%= id %>" draggable="false">home</a>
+                  <a id="path" draggable="false"></a>
+                </a>
+              </li>
+            </ul>
+          </div>
+          <div class="col-4">
+            <ul class="nav justify-content-end">
+              <li class="nav-item">
+                <!-- Button trigger modal -->
+                <button type="button" id="remove-btn" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#remove-modal" style="display: none;">
+                  削除
+                </button>
+              </li>
+              <li class="nav-item dropdown">
+                <a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" role="button" aria-expanded="false"></a>
+                <ul class="dropdown-menu">
+                  <li>
+                    <label class="dropdown-item">
+                      ファイルを追加
+                      <input type="file" class="dropdown-item" id="add-file" name="add-file" hidden multiple/>
+                    </label>
+                  </li>
+                  <li>
+                    <label class="dropdown-item" id="add-dir">
+                      ディレクトリを追加
+                      <!-- Button trigger modal -->
+                      <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#dir-modal" hidden></button>
+                    </label>
+                  </li>
+                </ul>
+              </li>
+            </ul>
+          </div>
         </div>
-        <div class="col-3">
-          <ul class="nav justify-content-end">
-            <li class="nav-item">
-              <!-- Button trigger modal -->
-              <button type="button" id="remove-btn" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#remove-modal" style="display: none;">
-                削除
-              </button>
-            </li>
-            <li class="nav-item dropdown">
-              <a class="nav-link dropdown-toggle" data-bs-toggle="dropdown" role="button" aria-expanded="false"></a>
-              <ul class="dropdown-menu">
-                <li>
-                  <label class="dropdown-item">
-                    ファイルを追加
-                    <input type="file" class="dropdown-item" id="add-file" name="add-file" hidden multiple/>
-                  </label>
-                </li>
-                <li>
-                  <label class="dropdown-item" id="add-dir">
-                    ディレクトリを追加
-                    <!-- Button trigger modal -->
-                    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#dir-modal" hidden></button>
-                  </label>
-                </li>
-              </ul>
-            </li>
-          </ul>
-        </div>
-        <hr>
         <div class="col-12">
           <table class="table table-sm table-hover table-radius drop-area" id="content-list">
             <thead class="bg-dark" style="color: white">
@@ -143,7 +144,7 @@
     </div>
   </div>
   <!-- 処理中 Modal -->
-  <div class="modal fade" id="processing-modal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+  <div class="modal" id="processing-modal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content">
         <div class="modal-header">

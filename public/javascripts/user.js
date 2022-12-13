@@ -71,6 +71,7 @@ $(window).on("load", async () => { // ページ読み込み終了後の処理。
     e.stopPropagation();
     e.preventDefault();
 
+    $("#remove-modal").modal("hide");
     $("#processing-modal").modal("show");
     await rmFiles();
     window.location.reload();
@@ -172,7 +173,11 @@ $(window).on("load", async () => { // ページ読み込み終了後の処理。
       e.preventDefault();
 
       if (!$("#share").attr("disabled")) {
+        $("#share-modal").modal("hide");
+        $("#processing-modal").modal("show");
         await shareFile();
+        $("#processing-modal").modal("hide");
+        $("#share-complete-modal").modal("show");
       }
     }
   });
@@ -211,7 +216,11 @@ $(window).on("load", async () => { // ページ読み込み終了後の処理。
     e.stopPropagation();
     e.preventDefault();
     
+    await $("#share-modal").modal("hide");
+    await $("#processing-modal").modal("show");
     await shareFile();
+    await $("#processing-modal").modal("hide");
+    await $("#share-complete-modal").modal("show");
   });
 });
 
@@ -221,7 +230,6 @@ async function addFile(file) {
   const formData = new FormData();
   formData.append("file", file);
   formData.append("file-name", file.name)
-  formData.append("password", localStorage.getItem(userID));
   formData.append("path", currentPath);
   // /user/{ユーザID}/upload にFormData をPOST。
   const res = await fetch(`/user/${userID}/upload`, {
@@ -236,7 +244,6 @@ async function addFile(file) {
 async function makeDirectory() {
   const params = new URLSearchParams();
   params.append("path", currentPath);
-  params.append("password", localStorage.getItem(userID));
   params.append("dir", $("#dir-name").val());
   // /user/{ユーザID}/mkdir に params をPOST。
   const res = await fetch(`/user/${userID}/mkdir`, {
@@ -250,7 +257,6 @@ async function makeDirectory() {
 
 async function listFile(cid, name) {
   const json = {
-    password: localStorage.getItem(userID),
     text: name,
     ownership: true
   }
@@ -273,7 +279,7 @@ async function listFile(cid, name) {
       + `      </g>`
       + `    </svg>`
       + `  </td>`
-      + `  <td class="file content-name" href="/user/${userID}/files/${cid}" id="${name}">`
+      + `  <td class="text-truncate file content-name" href="/user/${userID}/files/${cid}" id="${name}">`
       + `    ${data.text}`
       + `  </td>`
       + `  <td class="text-center file-menu">`
@@ -313,7 +319,7 @@ async function listFile(cid, name) {
       + `      </g>`
       + `    </svg>`
       + `  </td>`
-      + `  <td class="file-disabled content-name" id="${name}" style="colort: gray">`
+      + `  <td class="text-truncate file-disabled content-name" id="${name}" style="colort: gray">`
       + `    ${name}`
       + `  </td>`
       + `  <td class="text-center file-menu">`
@@ -325,7 +331,6 @@ async function listFile(cid, name) {
 
 async function listDir(name) {
   const json = {
-    password: localStorage.getItem(userID),
     text: name,
     ownership: true
   }
@@ -349,7 +354,7 @@ async function listDir(name) {
       + `      </g>`
       + `    </svg>`
       + `  </td>`
-      + `  <td class="dir content-name" href="/user/${userID}/directories/${dirPath}" id="${name}">`
+      + `  <td class="text-truncate dir content-name" href="/user/${userID}/directories/${dirPath}" id="${name}">`
       + `    ${data.text}`
       + `  </td>`
       + `  <td class="text-center file-menu">`
@@ -369,7 +374,7 @@ async function listDir(name) {
       + `      </g>`
       + `    </svg>`
       + `  </td>`
-      + `  <td class="dir-disabled content-name" id="${name}" style="color: gray">`
+      + `  <td class="text-truncate dir-disabled content-name" id="${name}" style="color: gray">`
       + `    ${name}`
       + `  </td>`
       + `  <td class="text-center file-menu">`
@@ -387,9 +392,8 @@ async function rmFiles() {
   }
 
   const json = {
-    "password": localStorage.getItem(userID),
-    "path": currentPath,
-    "target_files": targetFiles
+    path: currentPath,
+    target_files: targetFiles
   }
 
   const res = await fetch(`/user/${userID}/rmFiles`, {
@@ -434,7 +438,6 @@ async function getDecryptedDirsName() {
   let dirs = new Array();
   for (let dir of encryptedDirs) {
     const json = {
-      password: localStorage.getItem(userID),
       text: dir,
       ownership: true
     }
@@ -495,19 +498,13 @@ async function shareFile() {
   params.append("target-id", $("#share-target").val());
   params.append("cid", cid);
   params.append("content-name", contentName);
-  params.append("password", localStorage.getItem(userID));
 
-  $("#share-modal").modal("hide");
-  $("#processing-modal").modal("show");
   const res = await fetch(`/user/${userID}/share`, {
     method: "POST",
     body: params
   });
 
-  if (res.ok) {
-    $("#processing-modal").modal("hide");
-    $("#share-complete-modal").modal("show");
-  } else {
+  if (!res.ok) {
     throw new Error(res.statusText);
   }
 }

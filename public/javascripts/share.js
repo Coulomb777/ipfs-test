@@ -13,6 +13,8 @@ $(async () => {// 準備処理。
       e.stopPropagation();
       e.preventDefault();
   
+      $("#remove-modal").modal("hide");
+      $("#processing-modal").modal("show");
       await rmFiles();
       window.location.reload();
     });
@@ -50,8 +52,8 @@ $(async () => {// 準備処理。
   
   async function listFile(cid, name) {
     const json = {
-      password: localStorage.getItem(userID),
       text: name,
+      cid: cid,
       ownership: false
     }
     const res = await fetch(`/user/${userID}/decrypt/text`, {
@@ -61,7 +63,6 @@ $(async () => {// 準備処理。
     });
     if (res.ok) {
       const data = await res.json();
-      console.log(data.from)
       table.row.add($(
           `<tr>`
         + `   <td class="text-center">`
@@ -74,7 +75,7 @@ $(async () => {// 準備処理。
         + `      </g>`
         + `    </svg>`
         + `  </td>`
-        + `  <td class="file content-name" href="/user/${userID}/share/files/${cid}?name=${name}" id="${name}">`
+        + `  <td class="file content-name" href="/user/${userID}/share/files/${cid}" id="${name}">`
         + `    ${data.text}`
         + `  </td>`
         + `  <td class="file conten-from" id="${data.from}">`
@@ -124,14 +125,12 @@ $(async () => {// 準備処理。
   }
   
   async function rmFiles() {
-    let targetFiles = new Array();
     for (let target of $(".selection:checked")) {
       // 削除するコンテンツの名前を追加。
       targetFiles.push($(target).parents().siblings(".content-name").attr("id"));
     }
   
     const json = {
-      password: localStorage.getItem(userID),
       path: "share",
       target_files: targetFiles
     }

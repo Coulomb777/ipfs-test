@@ -19,6 +19,7 @@ body {
 }
 
 .table-radius {
+  table-layout: fixed;
   border: 1px solid;
   border-radius: 5px;
   border-spacing: 0;

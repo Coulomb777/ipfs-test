@@ -68,10 +68,11 @@ router.post("/", async (req, res) => {
     doCrypto.decryptString(cryptoAlgorithm, encryptedHomeDir, key, iv);
     // セッション情報にidを記録。
     req.session.user = userID;
+    // セッション情報にパスワードを記録。
+    req.session.password = password;
     // /user/{id} にリダイレクト。
     res.redirect(`/user/${userID}`);
   } catch (err) { // パスワードが違う。
-    console.log(err)
     // ログイン画面に戻る。
     res.render("login", { id: userID, invalidInput: true });
   }
