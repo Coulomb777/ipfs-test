@@ -327,7 +327,8 @@ router.post("/:id/rmFiles", async (req, res) => {
     db.close();
   } else { // 共有ディレクトリからの削除。
     for (const target of targetFiles) {
-      await node.files.rm(`/${path.join(userID, "shareKey", `.${target}`)}`, { recursive: true });
+      const cid = (await node.files.stat(`/${path.join(userID, "share", `${target}`)}`)).cid.toString();
+      await node.files.rm(`/${path.join(userID, "shareKey", `.${cid}`)}`, { recursive: true });
       await node.files.rm(`/${path.join(userID, "share", `${target}`)}`, { recursive: true });
     }
   }
