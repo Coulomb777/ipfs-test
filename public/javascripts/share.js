@@ -125,6 +125,7 @@ $(async () => {// 準備処理。
   }
   
   async function rmFiles() {
+    let targetFiles = new Array();
     for (let target of $(".selection:checked")) {
       // 削除するコンテンツの名前を追加。
       targetFiles.push($(target).parents().siblings(".content-name").attr("id"));
