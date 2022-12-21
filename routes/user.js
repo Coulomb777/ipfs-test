@@ -5,10 +5,12 @@ import crypto from "crypto";
 import fs from "fs-extra";
 import multer from "multer";
 import { concat as uint8ArrayConcat } from "uint8arrays/concat"
-import * as fileType from "file-type";
 import all from "it-all";
 import last from "it-last";
 import stream from "stream";
+import asyncIteratorToStream from "async-iterator-to-stream";
+import { getMimeType } from "stream-mime-type";
+import mimeHandler from "mime-to-extensions";
 
 import * as operateSqlite3 from "../src/lib/operate-sqlite3/index.mjs";
 import * as doCrypto from "../src/lib/do-crypto/index.mjs";
@@ -18,7 +20,7 @@ const router = Router();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const cryptoAlgorithm = "aes-256-cbc";
-const upload = multer({ dest: `${__dirname}/tmp/` });
+const upload = multer({ dest: `${__dirname}/tmp` });
 
 // 共通処理
 router.use("/*", (req, res, next) => {
@@ -92,24 +94,27 @@ router.get("/:id/files/:cid", async (req, res) => {
   const iv = Buffer.from(dbData["iv"], "hex");
   const key = crypto.scryptSync(password, salt, 32);
 
-  // 暗号化されたファイルのバイナリ
-  const encryptedBuffer = uint8ArrayConcat(await all(node.cat(cid)));
+  // 暗号化されたファイルのストリーム
+  const encryptedStream = asyncIteratorToStream(node.cat(cid));
 
-  // ファイルの復号化。
-  const fileBuffer = doCrypto.decryptFile(cryptoAlgorithm, new Uint8Array(encryptedBuffer), key, iv);
+  // 複合器
+  const decipher = crypto.createDecipheriv(cryptoAlgorithm, key, iv);
 
-  const type = await fileType.fileTypeFromBuffer(fileBuffer);
+  // MIME 情報と復号化後ファイルのストリームのオブジェクト
+  const decryptedStreamWithMIME = await getMimeType(encryptedStream.pipe(decipher));
 
-  const readStream = new stream.PassThrough();
-  readStream.end(Buffer.from(fileBuffer));
+  // mime と拡張子
+  const type = {
+    mime: decryptedStreamWithMIME.mime,
+    ext: mimeHandler.extension(decryptedStreamWithMIME.mime)
+  }
 
   const header = {
-    "Content-Length": fileBuffer.length,
-    "Content-Type": type.mime ? type.mime : "text/plain"
+    "Content-Type": type.mime
   }
 
   res.writeHead(200, header);
-  readStream.pipe(res);
+  (decryptedStreamWithMIME.stream).pipe(res);
 });
 
 router.get("/:id/download/:cid", async (req, res) => {
@@ -127,25 +132,28 @@ router.get("/:id/download/:cid", async (req, res) => {
   const iv = Buffer.from(dbData["iv"], "hex");
   const key = crypto.scryptSync(password, salt, 32);
 
-  // 暗号化されたファイルのバイナリ
-  const encryptedBuffer = uint8ArrayConcat(await all(node.cat(cid)));
+  // 暗号化されたファイルのストリーム
+  const encryptedStream = asyncIteratorToStream(node.cat(cid));
 
-  // ファイルの復号化。
-  const fileBuffer = doCrypto.decryptFile(cryptoAlgorithm, new Uint8Array(encryptedBuffer), key, iv);
+  // 複合器
+  const decipher = crypto.createDecipheriv(cryptoAlgorithm, key, iv);
 
-  const type = await fileType.fileTypeFromBuffer(fileBuffer);
+  // MIME 情報と復号化後ファイルのストリームのオブジェクト
+  const decryptedStreamWithMIME = await getMimeType(encryptedStream.pipe(decipher));
 
-  const readStream = new stream.PassThrough();
-  readStream.end(Buffer.from(fileBuffer));
+  // mime と拡張子
+  const type = {
+    mime: decryptedStreamWithMIME.mime,
+    ext: mimeHandler.extension(decryptedStreamWithMIME.mime)
+  }
 
   const header = {
     "Content-Disposition": `attachment; filename=${cid}.${type.ext}`,
-    "Content-Length": fileBuffer.length,
-    "Content-Type": type.mime ? type.mime : "text/plain"
+    "Content-Type": type.mime
   }
 
   res.writeHead(200, header);
-  readStream.pipe(res);
+  (decryptedStreamWithMIME.stream).pipe(res);
 });
 
 // /user/{ユーザID}/upload への POST 処理。
@@ -196,7 +204,6 @@ router.post("/:id/upload", upload.single("file"), async (req, res) => {
       isShared = true;
     } catch (err) { }
   }
-
 
   // ファイルストリーム。
   const readStream = fs.createReadStream(req.file.path);
@@ -485,14 +492,14 @@ router.get("/:id/share/files/:cid", async (req, res) => {
   const iv = Buffer.from(dbData["iv"], "hex");
   const key = crypto.scryptSync(password, salt, 32);
 
-  // 暗号化されたファイルのバイナリ
-  const encryptedBuffer = uint8ArrayConcat(await all(node.cat(cid)));
+  // 暗号化されたファイルのストリーム
+  const encryptedStream = asyncIteratorToStream(node.cat(cid));
 
   // 秘密鍵の復号化。
   const privateKey = doCrypto.decryptString(
     cryptoAlgorithm, dbData["encrypted_private_key"], key, iv
   );
-  // 共有コンテンツの復号化用情報を取得。
+  // 共有コンテンツの復号化用情報を取得。 (巨大なファイルサイズではないのでバッファで取得)
   const encryptedShareContentInfo = uint8ArrayConcat(
     await all(node.files.read(`/${path.join(userID, "shareKey", `.${cid}`)}`))
   );
@@ -506,28 +513,28 @@ router.get("/:id/share/files/:cid", async (req, res) => {
     ).toString("utf-8")
   );
 
+  // 共有用の鍵とiv
   const shareKey = Buffer.from(shareContentInfo.shareKey, "hex");
   const shareIv = Buffer.from(shareContentInfo.shareIv, "hex");
 
-  // ファイルの復号化。
-  const fileBuffer = doCrypto.decryptFile(cryptoAlgorithm, new Uint8Array(encryptedBuffer), shareKey, shareIv);
+  // 復号器
+  const decipher = crypto.createDecipheriv(cryptoAlgorithm, shareKey, shareIv);
+  
+  // MIME 情報と復号化後ファイルのストリームのオブジェクト。
+  const decryptedStreamWithMIME = await getMimeType(encryptedStream.pipe(decipher)); 
 
-  const type = await fileType.fileTypeFromBuffer(fileBuffer);
-
-  if (!type) {
-    type = { ext: "text", mime: "text/plain" };
+  // mime と 拡張子。
+  const type = {
+    mime: decryptedStreamWithMIME.mime,
+    ext: mimeHandler.extension(decryptedStreamWithMIME.mime)
   }
 
-  const readStream = new stream.PassThrough();
-  readStream.end(Buffer.from(fileBuffer));
-
   const header = {
-    "Content-Length": fileBuffer.length,
-    "Content-Type": type.mime ? type.mime : "text/plain"
+    "Content-Type": type.mime
   }
 
   res.writeHead(200, header);
-  readStream.pipe(res);
+  (decryptedStreamWithMIME.stream).pipe(res);
 });
 
 router.get("/:id/share/download/:cid", async (req, res) => {
@@ -545,14 +552,14 @@ router.get("/:id/share/download/:cid", async (req, res) => {
   const iv = Buffer.from(dbData["iv"], "hex");
   const key = crypto.scryptSync(password, salt, 32);
 
-  // 暗号化されたファイルのバイナリ
-  const encryptedBuffer = uint8ArrayConcat(await all(node.cat(cid)));
+  // 暗号化されたファイルのストリーム
+  const encryptedStream = asyncIteratorToStream(node.cat(cid));
 
   // 秘密鍵の復号化。
   const privateKey = doCrypto.decryptString(
     cryptoAlgorithm, dbData["encrypted_private_key"], key, iv
   );
-  // 共有コンテンツの復号化用情報を取得。
+  // 共有コンテンツの復号化用情報を取得。 (巨大なファイルサイズではないのでバッファで取得)
   const encryptedShareContentInfo = uint8ArrayConcat(
     await all(node.files.read(`/${path.join(userID, "shareKey", `.${cid}`)}`))
   );
@@ -566,29 +573,28 @@ router.get("/:id/share/download/:cid", async (req, res) => {
     ).toString("utf-8")
   );
 
+  // 共有用の鍵とiv
   const shareKey = Buffer.from(shareContentInfo.shareKey, "hex");
   const shareIv = Buffer.from(shareContentInfo.shareIv, "hex");
 
-  // ファイルの復号化。
-  const fileBuffer = doCrypto.decryptFile(cryptoAlgorithm, new Uint8Array(encryptedBuffer), shareKey, shareIv);
+  // 復号器
+  const decipher = crypto.createDecipheriv(cryptoAlgorithm, shareKey, shareIv);
+  
+  // MIME 情報と復号化後ファイルのストリームのオブジェクト。
+  const decryptedStreamWithMIME = await getMimeType(encryptedStream.pipe(decipher)); 
 
-  const type = await fileType.fileTypeFromBuffer(fileBuffer);
-
-  if (!type) {
-    type = { ext: "text", mime: "text/plain" };
+  // mime と 拡張子。
+  const type = {
+    mime: decryptedStreamWithMIME.mime,
+    ext: mimeHandler.extension(decryptedStreamWithMIME.mime)
   }
-
-  const readStream = new stream.PassThrough();
-  readStream.end(Buffer.from(fileBuffer));
 
   const header = {
     "Content-Disposition": `attachment; filename=${cid}.${type.ext}`,
-    "Content-Length": fileBuffer.length,
-    "Content-Type": type.mime ? type.mime : "text/plain"
+    "Content-Type": type.mime
   }
-
   res.writeHead(200, header);
-  readStream.pipe(res);
+  (decryptedStreamWithMIME.stream).pipe(res);
 });
 
 // /user/{ユーザID}/decrypt/text への POST処理。
@@ -620,6 +626,8 @@ router.post("/:id/decrypt/text", async (req, res) => {
     const encryptedShareContentInfo = uint8ArrayConcat(
       await all(node.files.read(`/${path.join(userID, "shareKey", `.${cid}`)}`))
     );
+
+    // 共有用メタデータ。
     const shareContentInfo = JSON.parse(
       crypto.privateDecrypt(
         {
@@ -630,6 +638,7 @@ router.post("/:id/decrypt/text", async (req, res) => {
       ).toString("utf-8")
     );
 
+    // 共有用の鍵とiv。
     const shareKey = Buffer.from(shareContentInfo.shareKey, "hex");
     const shareIv = Buffer.from(shareContentInfo.shareIv, "hex");
     from = shareContentInfo.from;
