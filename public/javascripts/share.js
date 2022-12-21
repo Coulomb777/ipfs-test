@@ -92,7 +92,7 @@ $(async () => {// 準備処理。
         + `      </button>`
         + `      <ul class="dropdown-menu">`
         + `        <li>`
-        + `          <a class="dropdown-item" href="/user/${userID}/share/download/${cid}?name=${name}" target="_blank" rel="noopener noreferrer" draggable="false">ダウンロード</a>`
+        + `          <a class="dropdown-item" href="/user/${userID}/share/download/${cid}" target="_blank" rel="noopener noreferrer" draggable="false">ダウンロード</a>`
         + `        </li>`
         + `      </ul>`
         + `    </div>`
