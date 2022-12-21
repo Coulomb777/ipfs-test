@@ -103,14 +103,15 @@ router.get("/:id/files/:cid", async (req, res) => {
   // MIME 情報と復号化後ファイルのストリームのオブジェクト
   const decryptedStreamWithMIME = await getMimeType(encryptedStream.pipe(decipher));
 
-  // mime と拡張子
+  // mime と 拡張子。
+  const mime = decryptedStreamWithMIME.mime === "application/octet-stream" ? "text/plain" : decryptedStreamWithMIME.mime;
   const type = {
-    mime: decryptedStreamWithMIME.mime,
-    ext: mimeHandler.extension(decryptedStreamWithMIME.mime)
+    mime: mime,
+    ext: mimeHandler.extension(mime)
   }
 
   const header = {
-    "Content-Type": type.mime
+    "Content-Type": type.mime === "text/plain" ? `${type.mime};charset=utf-8` : type.mime
   }
 
   res.writeHead(200, header);
@@ -141,15 +142,16 @@ router.get("/:id/download/:cid", async (req, res) => {
   // MIME 情報と復号化後ファイルのストリームのオブジェクト
   const decryptedStreamWithMIME = await getMimeType(encryptedStream.pipe(decipher));
 
-  // mime と拡張子
+  // mime と 拡張子。
+  const mime = decryptedStreamWithMIME.mime === "application/octet-stream" ? "text/plain" : decryptedStreamWithMIME.mime;
   const type = {
-    mime: decryptedStreamWithMIME.mime,
-    ext: mimeHandler.extension(decryptedStreamWithMIME.mime)
+    mime: mime,
+    ext: mimeHandler.extension(mime)
   }
 
   const header = {
     "Content-Disposition": `attachment; filename=${cid}.${type.ext}`,
-    "Content-Type": type.mime
+    "Content-Type": type.mime === "text/plain" ? `${type.mime};charset=utf-8` : type.mime
   }
 
   res.writeHead(200, header);
@@ -524,13 +526,14 @@ router.get("/:id/share/files/:cid", async (req, res) => {
   const decryptedStreamWithMIME = await getMimeType(encryptedStream.pipe(decipher)); 
 
   // mime と 拡張子。
+  const mime = decryptedStreamWithMIME.mime === "application/octet-stream" ? "text/plain" : decryptedStreamWithMIME.mime;
   const type = {
-    mime: decryptedStreamWithMIME.mime,
-    ext: mimeHandler.extension(decryptedStreamWithMIME.mime)
+    mime: mime,
+    ext: mimeHandler.extension(mime)
   }
 
   const header = {
-    "Content-Type": type.mime
+    "Content-Type": type.mime === "text/plain" ? `${type.mime};charset=utf-8` : type.mime
   }
 
   res.writeHead(200, header);
@@ -584,14 +587,16 @@ router.get("/:id/share/download/:cid", async (req, res) => {
   const decryptedStreamWithMIME = await getMimeType(encryptedStream.pipe(decipher)); 
 
   // mime と 拡張子。
+  const mime = decryptedStreamWithMIME.mime === "application/octet-stream" ? "text/plain" : decryptedStreamWithMIME.mime;
   const type = {
-    mime: decryptedStreamWithMIME.mime,
-    ext: mimeHandler.extension(decryptedStreamWithMIME.mime)
+    mime: mime,
+    ext: mimeHandler.extension(mime)
   }
 
+  console.log("typemime!!!!" + type.mime);
   const header = {
     "Content-Disposition": `attachment; filename=${cid}.${type.ext}`,
-    "Content-Type": type.mime
+    "Content-Type": type.mime === "text/plain" ? `${type.mime};charset=utf-8` : type.mime
   }
   res.writeHead(200, header);
   (decryptedStreamWithMIME.stream).pipe(res);
