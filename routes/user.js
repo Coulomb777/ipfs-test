@@ -593,7 +593,6 @@ router.get("/:id/share/download/:cid", async (req, res) => {
     ext: mimeHandler.extension(mime)
   }
 
-  console.log("typemime!!!!" + type.mime);
   const header = {
     "Content-Disposition": `attachment; filename=${cid}.${type.ext}`,
     "Content-Type": type.mime === "text/plain" ? `${type.mime};charset=utf-8` : type.mime
