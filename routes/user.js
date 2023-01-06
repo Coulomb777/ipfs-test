@@ -2,6 +2,7 @@ import { Router } from "express";
 import path from "path";
 import { fileURLToPath } from "url";
 import crypto from "crypto";
+import seven from "node-7z";
 import fs from "fs-extra";
 import multer from "multer";
 import { concat as uint8ArrayConcat } from "uint8arrays/concat"
@@ -97,25 +98,51 @@ router.get("/:id/files/:cid", async (req, res) => {
   // 暗号化されたファイルのストリーム
   const encryptedStream = asyncIteratorToStream(node.cat(cid));
 
-  // 複合器
+  // 復号器
   const decipher = crypto.createDecipheriv(cryptoAlgorithm, key, iv);
 
-  // MIME 情報と復号化後ファイルのストリームのオブジェクト
-  const decryptedStreamWithMIME = await getMimeType(encryptedStream.pipe(decipher));
+  // 復号後ファイルの一時的な置き場。
+  const tmpFileName = crypto.randomBytes(16).toString("hex");
+  fs.mkdirSync(`tmp/${userID}`, { recursive: true });
+  const writeStream = fs.createWriteStream(`tmp/${userID}/${tmpFileName}.7z`);
 
-  // mime と 拡張子。
-  const mime = decryptedStreamWithMIME.mime === "application/octet-stream" ? "text/plain" : decryptedStreamWithMIME.mime;
-  const type = {
-    mime: mime,
-    ext: mimeHandler.extension(mime)
-  }
+  // ファイルの復号化。
+  encryptedStream.pipe(decipher).pipe(writeStream);
 
-  const header = {
-    "Content-Type": type.mime === "text/plain" ? `${type.mime};charset=utf-8` : type.mime
-  }
+  // 復号ファイルの準備ができたあとの処理。
+  writeStream.on("close", () => {
+    // ファイル解凍。
+    const unSenvenZStream = seven.extract(`tmp/${userID}/${tmpFileName}.7z`, `tmp/${userID}/`);
+    let fileName;
+    unSenvenZStream.on("data", (data) => {
+      fileName = path.basename(data.file);
+    });
 
-  res.writeHead(200, header);
-  (decryptedStreamWithMIME.stream).pipe(res);
+    // ファイル解凍終了後。
+    unSenvenZStream.on("end", async () => {
+      const readStream = fs.createReadStream(`tmp/${userID}/${fileName}`);
+
+      // MIME 情報と復号化後ファイルのストリームのオブジェクト
+      const decryptedStreamWithMIME = await getMimeType(readStream);
+
+      // mime と 拡張子。
+      const mime = decryptedStreamWithMIME.mime === "application/octet-stream" ? "text/plain" : decryptedStreamWithMIME.mime;
+      const type = {
+        mime: mime,
+        ext: mimeHandler.extension(mime)
+      }
+
+      const header = {
+        "Content-Type": type.mime === "text/plain" ? `${type.mime};charset=utf-8` : type.mime
+      }
+
+      res.writeHead(200, header);
+      (decryptedStreamWithMIME.stream).pipe(res);
+
+      fs.remove(`tmp/${userID}`);
+    });
+  });
+ 
 });
 
 router.get("/:id/download/:cid", async (req, res) => {
@@ -136,26 +163,51 @@ router.get("/:id/download/:cid", async (req, res) => {
   // 暗号化されたファイルのストリーム
   const encryptedStream = asyncIteratorToStream(node.cat(cid));
 
-  // 複合器
+  // 復号器
   const decipher = crypto.createDecipheriv(cryptoAlgorithm, key, iv);
 
-  // MIME 情報と復号化後ファイルのストリームのオブジェクト
-  const decryptedStreamWithMIME = await getMimeType(encryptedStream.pipe(decipher));
+  // 復号後ファイルの一時的な置き場。
+  const tmpFileName = crypto.randomBytes(16).toString("hex");
+  fs.mkdirSync(`tmp/${userID}`, { recursive: true });
+  const writeStream = fs.createWriteStream(`tmp/${userID}/${tmpFileName}.7z`);
 
-  // mime と 拡張子。
-  const mime = decryptedStreamWithMIME.mime === "application/octet-stream" ? "text/plain" : decryptedStreamWithMIME.mime;
-  const type = {
-    mime: mime,
-    ext: mimeHandler.extension(mime)
-  }
+  // ファイルの復号化。
+  encryptedStream.pipe(decipher).pipe(writeStream);
 
-  const header = {
-    "Content-Disposition": `attachment; filename=${cid}.${type.ext}`,
-    "Content-Type": type.mime === "text/plain" ? `${type.mime};charset=utf-8` : type.mime
-  }
+  // 復号ファイルの準備ができたあとの処理。
+  writeStream.on("close", () => {
+    // ファイル解凍。
+    const unSenvenZStream = seven.extract(`tmp/${userID}/${tmpFileName}.7z`, `tmp/${userID}/`);
+    let fileName;
+    unSenvenZStream.on("data", (data) => {
+      fileName = path.basename(data.file);
+    });
 
-  res.writeHead(200, header);
-  (decryptedStreamWithMIME.stream).pipe(res);
+    // ファイル解凍終了後。
+    unSenvenZStream.on("end", async () => {
+      const readStream = fs.createReadStream(`tmp/${userID}/${fileName}`);
+
+      // MIME 情報と復号化後ファイルのストリームのオブジェクト
+      const decryptedStreamWithMIME = await getMimeType(readStream);
+
+      // mime と 拡張子。
+      const mime = decryptedStreamWithMIME.mime === "application/octet-stream" ? "text/plain" : decryptedStreamWithMIME.mime;
+      const type = {
+        mime: mime,
+        ext: mimeHandler.extension(mime)
+      }
+
+      const header = {
+        "Content-Disposition": `attachment; filename=${cid}.${type.ext}`,
+        "Content-Type": type.mime === "text/plain" ? `${type.mime};charset=utf-8` : type.mime
+      }
+
+      res.writeHead(200, header);
+      (decryptedStreamWithMIME.stream).pipe(res);
+
+      fs.remove(`tmp/${userID}`);
+    });
+  });
 });
 
 // /user/{ユーザID}/upload への POST 処理。
@@ -166,95 +218,104 @@ router.post("/:id/upload", upload.single("file"), async (req, res) => {
   const filePath = req.body["path"];
   const fileName = req.body["file-name"];
 
-  const db = operateSqlite3.open();
-  // トランザクション開始。
-  db.prepare("BEGIN").run();
-  // データベースから salt と iv を取得。
-  const dbData = db.prepare("SELECT salt, iv FROM users WHERE id = ?").get(userID);
+  const sevenZName = crypto.randomBytes(16).toString("hex");
+  const sevenZStream = seven.add(`tmp/${sevenZName}.7z`, req.file.path);
 
-  // salt、iv、key の設定。
-  const salt = Buffer.from(dbData["salt"], "hex");
-  const iv = Buffer.from(dbData["iv"], "hex");
-  const key = crypto.scryptSync(password, salt, 32);
+  // ファイル圧縮後にアップロード処理を行う。
+  sevenZStream.on("end", async () => {
 
-  // 暗号器
-  const cipher = crypto.createCipheriv(cryptoAlgorithm, key, iv);
-
-  // ファイル名の暗号化。
-  const encryptedName = doCrypto.encryptString(cryptoAlgorithm, fileName, key, iv);
-
-  // ホームディレクトリからのパス
-  const filePathFromHomeDir = path.posix.join(filePath, encryptedName);
-
-  // IPFSノードに追加するためのパス。
-  const homeDirPath = path.join(userID, "home", (await last(node.files.ls(`/${path.join(userID, "home")}`))).name);
-  const absFilePath = path.join(homeDirPath, filePathFromHomeDir);
-
-  let isExist = false;
-  try { // ファイルの存在確認。
-    await node.files.stat(`/${absFilePath}`);
-    isExist = true;
-  } catch (err) { }
-
-  let isShared = false;
-  if (isExist) { // 存在している場合。
-    // ファイルを削除。
-    await node.files.rm(`/${absFilePath}`);
-    try {
-      // 共有されていたファイルなのか確認。
-      await node.files.stat(`/${path.join(userID, "sharedFile", `.${encryptedName}`)}`);
-      isShared = true;
+    const db = operateSqlite3.open();
+    // トランザクション開始。
+    db.prepare("BEGIN").run();
+    // データベースから salt と iv を取得。
+    const dbData = db.prepare("SELECT salt, iv FROM users WHERE id = ?").get(userID);
+  
+    // salt、iv、key の設定。
+    const salt = Buffer.from(dbData["salt"], "hex");
+    const iv = Buffer.from(dbData["iv"], "hex");
+    const key = crypto.scryptSync(password, salt, 32);
+  
+    // 暗号器
+    const cipher = crypto.createCipheriv(cryptoAlgorithm, key, iv);
+  
+    // ファイル名の暗号化。
+    const encryptedName = doCrypto.encryptString(cryptoAlgorithm, fileName, key, iv);
+  
+    // ホームディレクトリからのパス
+    const filePathFromHomeDir = path.posix.join(filePath, encryptedName);
+  
+    // IPFSノードに追加するためのパス。
+    const homeDirPath = path.join(userID, "home", (await last(node.files.ls(`/${path.join(userID, "home")}`))).name);
+    const absFilePath = path.join(homeDirPath, filePathFromHomeDir);
+  
+    let isExist = false;
+    try { // ファイルの存在確認。
+      await node.files.stat(`/${absFilePath}`);
+      isExist = true;
     } catch (err) { }
-  }
-
-  // ファイルストリーム。
-  const readStream = fs.createReadStream(req.file.path);
-  // IPFSノードにファイルに暗号化して追加。
-  await node.files.write(`/${absFilePath}`, readStream.pipe(cipher), { create: true });
-  // 元ファイルの削除。
-  fs.unlinkSync(req.file.path);
-  // クライアントが使うホームディレクトリのCIDを取得。
-  const homeCid = (await node.files.stat(`/${homeDirPath}`)).cid.toString();
-  // データベースの更新。
-  db.prepare("UPDATE users SET home_cid = ? WHERE id = ?").run(homeCid, userID);
-  // トランザクションの終了。
-  db.prepare("COMMIT").run();
-  db.close();
-
-  if (isShared) { // 共有されていたコンテンツの場合。
-    // 追加したコンテツのCIDを取得。
-    const contentCid = (await node.files.stat(`/${absFilePath}`)).cid.toString();
-    // ファイルの共有状況の情報。
-    const encryptedInfo = Buffer.from(uint8ArrayConcat(
-      await all(node.files.read(`/${path.join(userID, "sharedFile", `.${encryptedName}`)}`))
-    )).toString();
-    const contentInfoJsonString = doCrypto.decryptString(cryptoAlgorithm, encryptedInfo, key, iv);
-    const contentInfo = JSON.parse(contentInfoJsonString);
-
-    for (const targetID of Object.keys(contentInfo)) {
-      const params = new URLSearchParams();
-      params.append("target-id", targetID);
-      params.append("cid", contentCid);
-      params.append("content-name", encryptedName);
-      const result = await fetch(`http://localhost:3000/user/${userID}/share`, {
-        method: "POST",
-        headers: {
-          cookie: req.headers.cookie
-        },
-        body: params
-      });
-
-      if (result.status === 404) { // user not found
-        delete contentInfo[targetID];
-         // 暗号化。
-        const newEncryptedInfo = doCrypto.encryptString(cryptoAlgorithm, JSON.stringify(contentInfo), key, iv);
-        // コンテンツの共有状況の情報を更新。
-        await node.files.write(`/${path.join(userID, "sharedFile", `.${encryptedName}`)}`, Buffer.from(newEncryptedInfo), { create: true });
+  
+    let isShared = false;
+    if (isExist) { // 存在している場合。
+      // ファイルを削除。
+      await node.files.rm(`/${absFilePath}`);
+      try {
+        // 共有されていたファイルなのか確認。
+        await node.files.stat(`/${path.join(userID, "sharedFile", `.${encryptedName}`)}`);
+        isShared = true;
+      } catch (err) { }
+    }
+  
+    // ファイルストリーム。
+    const readStream = fs.createReadStream(`tmp/${sevenZName}.7z`);
+    // IPFSノードにファイルに暗号化して追加。
+    await node.files.write(`/${absFilePath}`, readStream.pipe(cipher), { create: true });
+    // 元ファイルの削除。
+    fs.unlinkSync(req.file.path);
+    fs.unlinkSync(`tmp/${sevenZName}.7z`);
+    // クライアントが使うホームディレクトリのCIDを取得。
+    const homeCid = (await node.files.stat(`/${homeDirPath}`)).cid.toString();
+    // データベースの更新。
+    db.prepare("UPDATE users SET home_cid = ? WHERE id = ?").run(homeCid, userID);
+    // トランザクションの終了。
+    db.prepare("COMMIT").run();
+    db.close();
+  
+    if (isShared) { // 共有されていたコンテンツの場合。
+      // 追加したコンテツのCIDを取得。
+      const contentCid = (await node.files.stat(`/${absFilePath}`)).cid.toString();
+      // ファイルの共有状況の情報。
+      const encryptedInfo = Buffer.from(uint8ArrayConcat(
+        await all(node.files.read(`/${path.join(userID, "sharedFile", `.${encryptedName}`)}`))
+      )).toString();
+      const contentInfoJsonString = doCrypto.decryptString(cryptoAlgorithm, encryptedInfo, key, iv);
+      const contentInfo = JSON.parse(contentInfoJsonString);
+  
+      for (const targetID of Object.keys(contentInfo)) {
+        const params = new URLSearchParams();
+        params.append("target-id", targetID);
+        params.append("cid", contentCid);
+        params.append("content-name", encryptedName);
+        const result = await fetch(`http://localhost:3000/user/${userID}/share`, {
+          method: "POST",
+          headers: {
+            cookie: req.headers.cookie
+          },
+          body: params
+        });
+  
+        if (result.status === 404) { // user not found
+          delete contentInfo[targetID];
+           // 暗号化。
+          const newEncryptedInfo = doCrypto.encryptString(cryptoAlgorithm, JSON.stringify(contentInfo), key, iv);
+          // コンテンツの共有状況の情報を更新。
+          await node.files.write(`/${path.join(userID, "sharedFile", `.${encryptedName}`)}`, Buffer.from(newEncryptedInfo), { create: true });
+        }
       }
     }
-  }
+  
+    res.status(200).end();
+  });
 
-  res.status(200).end();
 });
 
 // /user/{ユーザID}/mkdir への POST 処理。
@@ -521,23 +582,47 @@ router.get("/:id/share/files/:cid", async (req, res) => {
 
   // 復号器
   const decipher = crypto.createDecipheriv(cryptoAlgorithm, shareKey, shareIv);
-  
-  // MIME 情報と復号化後ファイルのストリームのオブジェクト。
-  const decryptedStreamWithMIME = await getMimeType(encryptedStream.pipe(decipher)); 
+  // 復号後ファイルの一時的な置き場。
+  const tmpFileName = crypto.randomBytes(16).toString("hex");
+  fs.mkdirSync(`tmp/${userID}`, { recursive: true });
+  const writeStream = fs.createWriteStream(`tmp/${userID}/${tmpFileName}.7z`);
 
-  // mime と 拡張子。
-  const mime = decryptedStreamWithMIME.mime === "application/octet-stream" ? "text/plain" : decryptedStreamWithMIME.mime;
-  const type = {
-    mime: mime,
-    ext: mimeHandler.extension(mime)
-  }
+  // ファイルの復号化。
+  encryptedStream.pipe(decipher).pipe(writeStream);
 
-  const header = {
-    "Content-Type": type.mime === "text/plain" ? `${type.mime};charset=utf-8` : type.mime
-  }
+  // 復号ファイルの準備ができたあとの処理。
+  writeStream.on("close", () => {
+    // ファイル解凍。
+    const unSenvenZStream = seven.extract(`tmp/${userID}/${tmpFileName}.7z`, `tmp/${userID}/`);
+    let fileName;
+    unSenvenZStream.on("data", (data) => {
+      fileName = path.basename(data.file);
+    });
 
-  res.writeHead(200, header);
-  (decryptedStreamWithMIME.stream).pipe(res);
+    // ファイル解凍終了後。
+    unSenvenZStream.on("end", async () => {
+      const readStream = fs.createReadStream(`tmp/${userID}/${fileName}`);
+
+      // MIME 情報と復号化後ファイルのストリームのオブジェクト
+      const decryptedStreamWithMIME = await getMimeType(readStream);
+
+      // mime と 拡張子。
+      const mime = decryptedStreamWithMIME.mime === "application/octet-stream" ? "text/plain" : decryptedStreamWithMIME.mime;
+      const type = {
+        mime: mime,
+        ext: mimeHandler.extension(mime)
+      }
+
+      const header = {
+        "Content-Type": type.mime === "text/plain" ? `${type.mime};charset=utf-8` : type.mime
+      }
+
+      res.writeHead(200, header);
+      (decryptedStreamWithMIME.stream).pipe(res);
+
+      fs.remove(`tmp/${userID}`);
+    });
+  });
 });
 
 router.get("/:id/share/download/:cid", async (req, res) => {
@@ -582,23 +667,49 @@ router.get("/:id/share/download/:cid", async (req, res) => {
 
   // 復号器
   const decipher = crypto.createDecipheriv(cryptoAlgorithm, shareKey, shareIv);
-  
-  // MIME 情報と復号化後ファイルのストリームのオブジェクト。
-  const decryptedStreamWithMIME = await getMimeType(encryptedStream.pipe(decipher)); 
 
-  // mime と 拡張子。
-  const mime = decryptedStreamWithMIME.mime === "application/octet-stream" ? "text/plain" : decryptedStreamWithMIME.mime;
-  const type = {
-    mime: mime,
-    ext: mimeHandler.extension(mime)
-  }
+  // 復号後ファイルの一時的な置き場。
+  const tmpFileName = crypto.randomBytes(16).toString("hex");
+  fs.mkdirSync(`tmp/${userID}`, { recursive: true });
+  const writeStream = fs.createWriteStream(`tmp/${userID}/${tmpFileName}.7z`);
 
-  const header = {
-    "Content-Disposition": `attachment; filename=${cid}.${type.ext}`,
-    "Content-Type": type.mime === "text/plain" ? `${type.mime};charset=utf-8` : type.mime
-  }
-  res.writeHead(200, header);
-  (decryptedStreamWithMIME.stream).pipe(res);
+  // ファイルの復号化。
+  encryptedStream.pipe(decipher).pipe(writeStream);
+
+  // 復号ファイルの準備ができたあとの処理。
+  writeStream.on("close", () => {
+    // ファイル解凍。
+    const unSenvenZStream = seven.extract(`tmp/${userID}/${tmpFileName}.7z`, `tmp/${userID}/`);
+    let fileName;
+    unSenvenZStream.on("data", (data) => {
+      fileName = path.basename(data.file);
+    });
+
+    // ファイル解凍終了後。
+    unSenvenZStream.on("end", async () => {
+      const readStream = fs.createReadStream(`tmp/${userID}/${fileName}`);
+
+      // MIME 情報と復号化後ファイルのストリームのオブジェクト
+      const decryptedStreamWithMIME = await getMimeType(readStream);
+
+      // mime と 拡張子。
+      const mime = decryptedStreamWithMIME.mime === "application/octet-stream" ? "text/plain" : decryptedStreamWithMIME.mime;
+      const type = {
+        mime: mime,
+        ext: mimeHandler.extension(mime)
+      }
+
+      const header = {
+        "Content-Disposition": `attachment; filename=${cid}.${type.ext}`,
+        "Content-Type": type.mime === "text/plain" ? `${type.mime};charset=utf-8` : type.mime
+      }
+
+      res.writeHead(200, header);
+      (decryptedStreamWithMIME.stream).pipe(res);
+
+      fs.remove(`tmp/${userID}`);
+    });
+  });
 });
 
 // /user/{ユーザID}/decrypt/text への POST処理。
